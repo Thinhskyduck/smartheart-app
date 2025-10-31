@@ -140,7 +140,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _buildMetricCard("Nhịp nghỉ", hrValue, Icons.favorite, Colors.red),
                   _buildMetricCard("HRV", hrvValue, Icons.show_chart, Colors.green),
                   _buildMetricCard("Giờ ngủ", sleepValue, Icons.bedtime, Colors.purple),
-                  _buildMetricCard("ECG (Cuối)", ecgValue, Icons.monitor_heart, Colors.teal),
+                  _buildMetricCard("ECG", ecgValue, Icons.monitor_heart, Colors.teal),
                   _buildMetricCard("Vận động", activityValue, Icons.directions_walk, Colors.orange),
                 ],
               ),
