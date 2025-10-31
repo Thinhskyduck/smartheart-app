@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart'; // Thư viện biểu đồ
-import 'alert_dialogs.dart'; // Import file cảnh báo
+import 'package:fl_chart/fl_chart.dart';
+import 'alert_dialogs.dart';
 
 const Color primaryColor = Color(0xFF2260FF);
 
@@ -8,228 +8,320 @@ class HealthStatsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         backgroundColor: Colors.white,
-        elevation: 1,
-        title: Text(
+        elevation: 0,
+        title: const Text(
           "Chi tiết Sức khỏe",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
         ),
+        centerTitle: true,
       ),
       body: ListView(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         children: [
-          // Thẻ Biểu đồ chính (ví dụ: Nhịp tim)
-          _buildMainChartCard(context),
-          
-          SizedBox(height: 16),
-          
-          // Chú thích (chứa nút test)
-          _buildAlertLegend(context),
-          
-          SizedBox(height: 16),
+          // 4 Biểu đồ chính
+          _buildChartCard(
+            context,
+            title: "Nhịp tim lúc nghỉ",
+            subtitle: "68 bpm (Trung bình tuần)",
+            color: Colors.red,
+            chart: _buildLineChart(
+              color: Colors.red,
+              data: [65, 66, 68, 75, 70, 68, 69],
+              unit: "bpm",
+              baseline: 70,
+              baselineLabel: "Baseline",
+            ),
+          ),
+          _buildChartCard(
+            context,
+            title: "SpO2 ban đêm",
+            subtitle: "96% (Trung bình tuần)",
+            color: Colors.blue,
+            chart: _buildLineChart(
+              color: Colors.blue,
+              data: [95, 96, 97, 94, 96, 95, 96],
+              unit: "%",
+              baseline: 94,
+              baselineLabel: "Baseline",
+            ),
+          ),
+          _buildChartCard(
+            context,
+            title: "Biến thiên nhịp tim (HRV)",
+            subtitle: "42 ms (Trung bình tuần)",
+            color: Colors.green,
+            chart: _buildLineChart(
+              color: Colors.green,
+              data: [38, 40, 42, 45, 41, 43, 42],
+              unit: "ms",
+            ),
+          ),
+          _buildChartCard(
+            context,
+            title: "Giấc ngủ",
+            subtitle: "7h 15m (Trung bình tuần)",
+            color: Colors.purple,
+            chart: _buildBarChart(
+              color: Colors.purple,
+              data: [7.0, 6.5, 5.0, 7.5, 8.0, 6.8, 7.2],
+            ),
+          ),
 
-          // Các thẻ chỉ số phụ
-           Text(
-            "Các chỉ số khác",
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          // 2 Thẻ không có biểu đồ
+          _buildNonChartCard(
+            title: "ECG (Lần đo cuối)",
+            value: "Nhịp Xoang",
+            icon: Icons.monitor_heart,
+            color: Colors.teal,
+            subtitle: "Đo lúc 7:15 sáng",
           ),
-          SizedBox(height: 12),
-          _buildSecondaryMetricCard(
-            "SpO2 ban đêm", "96 %", Icons.air, Colors.blue, "Trung bình"
+          _buildNonChartCard(
+            title: "Vận động",
+            value: "3,205 Bước",
+            icon: Icons.directions_walk,
+            color: Colors.orange,
+            subtitle: "Hôm nay",
           ),
-           _buildSecondaryMetricCard(
-            "Giờ ngủ", "7h 15m", Icons.bedtime, Colors.purple, "Đêm qua"
-          ),
+
+          const SizedBox(height: 16),
+
+          // Chú thích cảnh báo
+          _buildAlertLegend(context),
         ],
       ),
     );
   }
-  
-  // Nâng cấp thẻ biểu đồ
-  Widget _buildMainChartCard(BuildContext context) {
+
+  // Thẻ có biểu đồ
+  Widget _buildChartCard(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required Color color,
+    required Widget chart,
+  }) {
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 3,
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              "Nhịp tim lúc nghỉ (Tuần này)",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)
-            ),
-             Text(
-              "68 bpm (Trung bình)",
-              style: TextStyle(fontSize: 16, color: Colors.grey[600])
-            ),
-            SizedBox(height: 24),
-            Container(
-              height: 200,
-              child: _buildUpgradedLineChart(primaryColor),
-            )
+            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(subtitle, style: TextStyle(fontSize: 15, color: Colors.grey[600])),
+            const SizedBox(height: 20),
+            SizedBox(height: 140, child: chart),
           ],
         ),
-      )
+      ),
     );
   }
-  
-  // Nâng cấp các thẻ phụ
-  Widget _buildSecondaryMetricCard(String title, String value, IconData icon, Color color, String subtitle) {
-     return Card(
-      elevation: 1,
-      margin: EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+
+  // Thẻ không có biểu đồ
+  Widget _buildNonChartCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required String subtitle,
+  }) {
+    return Card(
+      elevation: 1.5,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: ListTile(
-        contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         leading: CircleAvatar(
-          // ======== SỬA LỖI TẠI ĐÂY ========
-          // backgroundColor: color.withOpacity(0.1),
-          backgroundColor: color.withAlpha((255 * 0.1).round()), // ~26
-          // ======== KẾT THÚC SỬA ========
+          backgroundColor: color.withAlpha(28),
           child: Icon(icon, color: color, size: 28),
         ),
-        title: Text(title, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w500)),
-        subtitle: Text(subtitle, style: TextStyle(fontSize: 15)),
-        trailing: Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
+        title: Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+        subtitle: Text(subtitle, style: const TextStyle(fontSize: 14.5)),
+        trailing: Text(
+          value,
+          style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: color),
+        ),
       ),
     );
   }
 
-  // Nâng cấp biểu đồ (Thêm Baseline và Tooltips)
-  Widget _buildUpgradedLineChart(Color lineColor) {
-  return LineChart(
-    LineChartData(
-      gridData: FlGridData(show: false),
-      titlesData: FlTitlesData(
-        show: true,
-        rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-      ),
-      borderData: FlBorderData(show: false),
+  // Biểu đồ đường chung
+  Widget _buildLineChart({
+    required Color color,
+    required List<double> data,
+    required String unit,
+    double? baseline,
+    String? baselineLabel,
+  }) {
+    final spots = data.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList();
 
-      extraLinesData: ExtraLinesData(
-        horizontalLines: [
-          HorizontalLine(
-            y: 70,
-            color: Colors.grey.withAlpha((255 * 0.5).round()),
-            strokeWidth: 2,
-            dashArray: [5, 5],
-            label: HorizontalLineLabel(
+    return LineChart(
+      LineChartData(
+        gridData: const FlGridData(show: false),
+        titlesData: const FlTitlesData(show: false),
+        borderData: FlBorderData(show: false),
+        lineTouchData: LineTouchData(
+          handleBuiltInTouches: true,
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (_) => primaryColor,
+            tooltipBorderRadius: BorderRadius.circular(8),
+            tooltipPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            tooltipMargin: 8,
+            getTooltipItems: (spots) {
+              return spots.map((spot) {
+                return LineTooltipItem(
+                  '${spot.y.toInt()} $unit',
+                  const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                );
+              }).toList();
+            },
+          ),
+        ),
+        extraLinesData: baseline == null
+            ? null
+            : ExtraLinesData(horizontalLines: [
+                HorizontalLine(
+                  y: baseline,
+                  color: Colors.grey.withOpacity(0.5),
+                  strokeWidth: 1.5,
+                  dashArray: [6, 4],
+                  label: HorizontalLineLabel(
+                    show: true,
+                    alignment: Alignment.topRight,
+                    padding: const EdgeInsets.only(right: 6),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                    labelResolver: (_) => baselineLabel ?? "Baseline",
+                  ),
+                ),
+              ]),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            color: color,
+            barWidth: 4.5,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
               show: true,
-              alignment: Alignment.topRight,
-              padding: EdgeInsets.only(right: 5),
-              labelResolver: (_) => "Baseline của bạn",
-              style: TextStyle(color: Colors.grey[600]),
+              gradient: LinearGradient(
+                colors: [
+                  color.withOpacity(0.25),
+                  color.withOpacity(0.0),
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
 
-      // 🔧 ĐỔI Ở ĐÂY
-      lineTouchData: LineTouchData(
-        touchTooltipData: LineTouchTooltipData(
-          getTooltipColor: (spot) => primaryColor, 
-          tooltipBorderRadius: BorderRadius.circular(8),
-          tooltipPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          tooltipMargin: 8,
-          getTooltipItems: (touchedSpots) {
-            return touchedSpots.map((spot) {
-              return LineTooltipItem(
-                '${spot.y.toInt()} bpm',
-                TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+  // Biểu đồ cột cho giấc ngủ
+  Widget _buildBarChart({required Color color, required List<double> data}) {
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        gridData: const FlGridData(show: false),
+        titlesData: const FlTitlesData(show: false),
+        borderData: FlBorderData(show: false),
+        barTouchData: BarTouchData(
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipColor: (group) => primaryColor,
+            tooltipBorderRadius: BorderRadius.circular(8),
+            tooltipPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            getTooltipItem: (group, _, rod, __) {
+              return BarTooltipItem(
+                '${rod.toY.toStringAsFixed(1)} h',
+                const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
               );
-            }).toList();
-          },
-        ),
-        handleBuiltInTouches: true,
-      ),
-
-      lineBarsData: [
-        LineChartBarData(
-          spots: [
-            FlSpot(0, 65),
-            FlSpot(1, 66),
-            FlSpot(2, 68),
-            FlSpot(3, 75),
-            FlSpot(4, 70),
-            FlSpot(5, 68),
-            FlSpot(6, 69),
-          ],
-          isCurved: true,
-          color: lineColor,
-          barWidth: 5,
-          isStrokeCapRound: true,
-          dotData: FlDotData(show: false),
-          belowBarData: BarAreaData(
-            show: true,
-            gradient: LinearGradient(
-              colors: [
-                lineColor.withAlpha((255 * 0.3).round()),
-                lineColor.withAlpha(0),
-              ],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
+            },
           ),
         ),
-      ],
-    ),
-  );
-}
+        barGroups: data
+            .asMap()
+            .entries
+            .map((e) => _makeBarGroup(e.key, e.value, color))
+            .toList(),
+      ),
+    );
+  }
 
-  
-  // Widget chú thích (có thể bấm)
+  BarChartGroupData _makeBarGroup(int x, double y, Color color) {
+    return BarChartGroupData(
+      x: x,
+      barRods: [
+        BarChartRodData(
+          toY: y,
+          color: color,
+          width: 16,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+        ),
+      ],
+    );
+  }
+
+  // Chú thích cảnh báo (có thể bấm)
   Widget _buildAlertLegend(BuildContext context) {
     return Card(
       elevation: 0,
       color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               "Chú thích Cảnh báo (Demo)",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 12),
-            InkWell(
-              onTap: () => showWarningAlert(context), // <-- Bấm được
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Row(
-                  children: [
-                    Icon(Icons.circle, color: Colors.orange[700], size: 16),
-                    SizedBox(width: 10),
-                    Text("Cảnh báo Vàng (AI Lớp 2)", style: TextStyle(fontSize: 16)),
-                    Spacer(),
-                    Icon(Icons.touch_app, color: Colors.grey[500], size: 20)
-                  ],
-                ),
-              ),
+            const SizedBox(height: 14),
+            _buildLegendItem(
+              context,
+              color: Colors.orange[700]!,
+              label: "Cảnh báo Vàng (AI Lớp 2)",
+              onTap: () => showWarningAlert(context),
             ),
-            Divider(),
-            InkWell(
-              onTap: () => showDangerAlert(context), // <-- Bấm được
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Row(
-                  children: [
-                    Icon(Icons.circle, color: Colors.red[700], size: 16),
-                    SizedBox(width: 10),
-                    Text("Cảnh báo Đỏ (AI Lớp 1)", style: TextStyle(fontSize: 16)),
-                    Spacer(),
-                    Icon(Icons.touch_app, color: Colors.grey[500], size: 20)
-                  ],
-                ),
-              ),
+            const Divider(height: 20),
+            _buildLegendItem(
+              context,
+              color: Colors.red[700]!,
+              label: "Cảnh báo Đỏ (AI Lớp 1)",
+              onTap: () => showDangerAlert(context),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(BuildContext context,
+      {required Color color, required String label, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            Icon(Icons.circle, color: color, size: 16),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(label, style: const TextStyle(fontSize: 16)),
+            ),
+            Icon(Icons.touch_app, color: Colors.grey[500], size: 22),
           ],
         ),
       ),

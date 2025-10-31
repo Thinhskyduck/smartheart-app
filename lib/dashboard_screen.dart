@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-
 import 'symptom_report_screen.dart';
 
 const Color primaryColor = Color(0xFF2260FF);
@@ -11,6 +10,14 @@ enum AIStatus { stable, warning, danger }
 class DashboardScreen extends StatelessWidget {
   final AIStatus currentStatus = AIStatus.stable;
   final String patientName = "Ông A";
+
+  // Dữ liệu giả lập - bạn có thể truyền `null` để test
+  final String? spo2Value = "96%";
+  final String? hrValue = "68 bpm";
+  final String? hrvValue = "42 ms";
+  final String? sleepValue = "7h 15m";
+  final String? ecgValue = "Nhịp Xoang"; // ECG
+  final String? activityValue = "3,205 Bước"; // Vận động
 
   Color getStatusColor() {
     // ... (Giữ nguyên)
@@ -23,6 +30,7 @@ class DashboardScreen extends StatelessWidget {
         return Colors.red[700]!;
     }
   }
+
   String getStatusText() {
     // ... (Giữ nguyên)
     switch (currentStatus) {
@@ -34,6 +42,7 @@ class DashboardScreen extends StatelessWidget {
         return "CẢNH BÁO";
     }
   }
+
   IconData getStatusIcon() {
     // ... (Giữ nguyên)
     switch (currentStatus) {
@@ -73,32 +82,35 @@ class DashboardScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildAIStatusCard(), // Thẻ này đã đẹp, giữ nguyên
+              _buildAIStatusCard(),
               SizedBox(height: 24),
 
               Text(
-                "Tóm tắt đêm qua",
+                "Dữ liệu hôm nay", // Đổi tiêu đề
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 12),
               
-              // ======== NÂNG CẤP GIAO DIỆN LƯỚI ========
+              // ======== NÂNG CẤP LƯỚI 2 CỘT (6 CHỈ SỐ) ========
               GridView.count(
-                crossAxisCount: 3, // 3 cột
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                shrinkWrap: true, // Quan trọng: để GridView không cuộn
-                physics: NeverScrollableScrollPhysics(), // và không chiếm full
+                crossAxisCount: 2, // 2 cột
+                crossAxisSpacing: 16, // Tăng khoảng cách
+                mainAxisSpacing: 16,  // Tăng khoảng cách
+                shrinkWrap: true,
+                physics: NeverScrollableScrollPhysics(),
                 children: [
                   _buildMetricCard(
-                      "SpO2", "96%", Icons.air, Colors.blue),
+                      "SpO2", spo2Value, Icons.air, Colors.blue),
                   _buildMetricCard(
-                      "Nhịp nghỉ", "68 bpm", Icons.favorite, Colors.red),
+                      "Nhịp nghỉ", hrValue, Icons.favorite, Colors.red),
                   _buildMetricCard(
-                      "Giờ ngủ", "7h 15m", Icons.bedtime, Colors.purple),
+                      "HRV", hrvValue, Icons.show_chart, Colors.green),
                   _buildMetricCard(
-                      "HRV", "42 ms", Icons.show_chart, Colors.green),
-                  // Bạn có thể thêm các chỉ số khác
+                      "Giờ ngủ", sleepValue, Icons.bedtime, Colors.purple),
+                  _buildMetricCard(
+                      "ECG (Cuối)", ecgValue, Icons.monitor_heart, Colors.teal),
+                  _buildMetricCard(
+                      "Vận động", activityValue, Icons.directions_walk, Colors.orange),
                 ],
               ),
               // ======== KẾT THÚC NÂNG CẤP LƯỚI ========
@@ -113,7 +125,7 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildAIStatusCard() {
-    // (Giữ nguyên code của widget này, nó đã đẹp)
+    // (Giữ nguyên code của widget này)
     return Card(
       elevation: 4,
       color: getStatusColor(),
@@ -142,40 +154,43 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // ======== NÂNG CẤP GIAO DIỆN THẺ CHỈ SỐ ========
+  // ======== NÂNG CẤP THẺ CHỈ SỐ (XỬ LÝ NULL VÀ LỖI withOpacity) ========
   Widget _buildMetricCard(
-      String title, String value, IconData icon, Color color) {
+      String title, String? value, IconData icon, Color color) {
+    bool hasData = value != null;
+
     return Card(
       elevation: 0, // Thiết kế phẳng
-      color: color.withOpacity(0.1), // Màu nền nhẹ
+      // Sửa lỗi: dùng withAlpha
+      color: hasData ? color.withAlpha((255 * 0.1).round()) : Colors.grey[100],
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        // side: BorderSide(color: color.withOpacity(0.3), width: 1), // Viền nhẹ
+        borderRadius: BorderRadius.circular(20), // Bo tròn hơn
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(16.0), // Tăng padding
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: color, size: 28),
-            SizedBox(height: 10),
+            Icon(icon, color: hasData ? color : Colors.grey[400], size: 32), // Icon to hơn
+            Spacer(),
             Text(
               title,
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 18, // Chữ to hơn
                 fontWeight: FontWeight.w500,
-                color: Colors.black87,
+                color: hasData ? Colors.black87 : Colors.grey[600],
               ),
             ),
             SizedBox(height: 4),
             Text(
-              value,
+              hasData ? value : "Không có dữ liệu",
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 22, // Chữ to hơn
                 fontWeight: FontWeight.bold,
-                color: color,
+                color: hasData ? color : Colors.grey[500],
               ),
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -184,14 +199,13 @@ class DashboardScreen extends StatelessWidget {
   }
   // ======== KẾT THÚC NÂNG CẤP THẺ CHỈ SỐ ========
 
-  // ======== BỎ 2 NÚT TEST, THAY ĐỔI MÀU SẮC ========
   Widget _buildActionButtons(BuildContext context) {
+    // (Giữ nguyên code của widget này, đã bỏ 2 nút test)
     return Column(
       children: [
-        // Nút Báo cáo, dùng màu Cam (Warning)
         ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.orange[700], // <-- Sửa màu
+            backgroundColor: Colors.orange[700],
             foregroundColor: Colors.white,
             minimumSize: Size(double.infinity, 60),
             shape:
@@ -216,11 +230,9 @@ class DashboardScreen extends StatelessWidget {
           },
         ),
         SizedBox(height: 12),
-
-        // Nút Xác nhận thuốc, dùng màu chính
         ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
-            backgroundColor: primaryColor, // <-- Dùng màu chính
+            backgroundColor: primaryColor,
             minimumSize: Size(double.infinity, 60),
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -231,13 +243,9 @@ class DashboardScreen extends StatelessWidget {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           onPressed: () {
-            // Logic: Chuyển sang Tab Thuốc
-            // Bạn có thể dùng Provider/Riverpod để gọi hàm đổi tab
-            // Hoặc để tạm
+            // Logic
           },
         ),
-        
-        // ĐÃ XÓA 2 NÚT TEST
       ],
     );
   }
