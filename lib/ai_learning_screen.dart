@@ -52,7 +52,7 @@ class _AiLearningScreenState extends State<AiLearningScreen> {
               
               // ======== CẬP NHẬT NỘI DUNG GIẢI THÍCH (CHO ĐỀ XUẤT 4) ========
               Text(
-                "Mô hình AI đã được huấn luyện. Trong 7-10 ngày tới, AI sẽ thu thập dữ liệu để hiệu chỉnh các chỉ số nền của riêng bạn.\n\nĐiều này giúp các cảnh báo cá nhân hóa hoạt động chính xác nhất.",
+                "Mô hình AI đã được huấn luyện. AI sẽ thu thập dữ liệu để hiệu chỉnh các chỉ số nền của riêng bạn.\n\nĐiều này giúp các cảnh báo cá nhân hóa hoạt động chính xác nhất.",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 18,
