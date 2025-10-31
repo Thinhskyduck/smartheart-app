@@ -6,25 +6,20 @@ import 'patient_details_screen.dart';
 const Color primaryColor = Color(0xFF2260FF);
 
 // Giả lập trạng thái AI
-enum AIStatus { danger, warning, stable } // Sắp xếp lại để danger=0, warning=1
+enum AIStatus { danger, warning, stable }
 
-// Nâng cấp Model Bệnh nhân để chứa thêm dữ liệu tóm tắt cho dashboard
 class Patient {
   final String id;
   final String name;
   final AIStatus status;
   final String lastAlert;
-  final String? criticalValue; // Ví dụ: "89%"
-  final String? criticalMetric; // Ví dụ: "SpO2"
+  final String? criticalValue;
+  final String? criticalMetric;
   final DateTime lastUpdate;
 
   Patient({
-    required this.id,
-    required this.name,
-    required this.status,
-    required this.lastAlert,
-    this.criticalValue,
-    this.criticalMetric,
+    required this.id, required this.name, required this.status,
+    required this.lastAlert, this.criticalValue, this.criticalMetric,
     required this.lastUpdate,
   });
 }
@@ -35,7 +30,7 @@ class DoctorDashboardScreen extends StatefulWidget {
 }
 
 class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
-  // --- DỮ LIỆU GIẢ LẬP ĐÃ NÂNG CẤP ---
+  // --- DỮ LIỆU GIẢ LẬP ---
   final List<Patient> _allPatients = [
     Patient(id: "BN001", name: "Nguyễn Văn A", status: AIStatus.danger, lastAlert: "SpO2 dưới ngưỡng an toàn.", criticalValue: "89%", criticalMetric: "SpO2", lastUpdate: DateTime.now().subtract(Duration(minutes: 15))),
     Patient(id: "BN002", name: "Trần Thị B", status: AIStatus.warning, lastAlert: "Nhịp tim lúc nghỉ tăng 15%.", criticalValue: "92 bpm", criticalMetric: "HR", lastUpdate: DateTime.now().subtract(Duration(hours: 2))),
@@ -45,7 +40,6 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     Patient(id: "BN006", name: "Đặng Thị F", status: AIStatus.stable, lastAlert: "Không có cảnh báo", lastUpdate: DateTime.now().subtract(Duration(hours: 8))),
   ];
   
-  // --- State cho việc tìm kiếm và lọc ---
   late List<Patient> _filteredPatients;
   String _searchQuery = '';
   AIStatus? _selectedFilter;
@@ -53,9 +47,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    // Ban đầu, hiển thị tất cả bệnh nhân
     _filteredPatients = _allPatients;
-    // Sắp xếp danh sách ưu tiên theo trạng thái
     _sortPatients();
   }
   
@@ -65,25 +57,18 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   
   void _filterPatients() {
     setState(() {
-      // Bắt đầu với danh sách gốc
       List<Patient> tempPatients = _allPatients;
-      
-      // Áp dụng bộ lọc trạng thái
       if (_selectedFilter != null) {
         tempPatients = tempPatients.where((p) => p.status == _selectedFilter).toList();
       }
-      
-      // Áp dụng tìm kiếm
       if (_searchQuery.isNotEmpty) {
         tempPatients = tempPatients.where((p) => p.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
       }
-
       _filteredPatients = tempPatients;
       _sortPatients();
     });
   }
 
-  // --- Các hàm Helper cho màu sắc ---
   Color _getStatusColor(AIStatus status) {
     switch (status) {
       case AIStatus.stable: return Colors.green.shade600;
@@ -100,7 +85,6 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
         backgroundColor: Colors.white,
         elevation: 1,
         title: Text("Bảng điều khiển", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-        // --- Ô TÌM KIẾM MỚI ---
         bottom: PreferredSize(
           preferredSize: Size.fromHeight(60.0),
           child: Padding(
@@ -113,10 +97,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
               decoration: InputDecoration(
                 hintText: "Tìm kiếm bệnh nhân...",
                 prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30.0),
-                  borderSide: BorderSide.none,
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(30.0), borderSide: BorderSide.none),
                 filled: true,
                 fillColor: Colors.grey[100],
                 contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 16),
@@ -127,8 +108,9 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
       ),
       body: Column(
         children: [
-          // --- BỘ LỌC MỚI ---
-          _buildFilterChips(),
+          // ======== SỬ DỤNG BỘ LỌC MỚI TẠI ĐÂY ========
+          _buildFilterToolbar(),
+          // ===========================================
           Expanded(
             child: ListView.builder(
               padding: EdgeInsets.all(12),
@@ -144,51 +126,73 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     );
   }
 
-  // WIDGET MỚI: Bộ lọc
-  Widget _buildFilterChips() {
+  // ======== WIDGET BỘ LỌC MỚI, HIỆN ĐẠI HƠN ========
+  Widget _buildFilterToolbar() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10.0),
+      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
       color: Colors.white,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          FilterChip(
-            label: Text("Tất cả"),
-            selected: _selectedFilter == null,
-            onSelected: (selected) {
-              setState(() { _selectedFilter = null; _filterPatients(); });
-            },
-          ),
-          FilterChip(
-            label: Text("Nguy hiểm"),
-            selected: _selectedFilter == AIStatus.danger,
-            onSelected: (selected) {
-              setState(() { _selectedFilter = AIStatus.danger; _filterPatients(); });
-            },
-            selectedColor: Colors.red[100],
-          ),
-          FilterChip(
-            label: Text("Cần chú ý"),
-            selected: _selectedFilter == AIStatus.warning,
-            onSelected: (selected) {
-              setState(() { _selectedFilter = AIStatus.warning; _filterPatients(); });
-            },
-            selectedColor: Colors.orange[100],
-          ),
+          _buildFilterButton("Tất cả", null, Icons.list_alt),
+          SizedBox(width: 8),
+          _buildFilterButton("Nguy hiểm", AIStatus.danger, Icons.dangerous_outlined),
+          SizedBox(width: 8),
+          _buildFilterButton("Cần chú ý", AIStatus.warning, Icons.warning_amber_rounded),
         ],
       ),
     );
   }
 
-  // WIDGET ĐÃ THIẾT KẾ LẠI: Thẻ bệnh nhân
+  // Widget con cho từng nút bấm trong bộ lọc
+  Widget _buildFilterButton(String text, AIStatus? status, IconData icon) {
+    bool isSelected = _selectedFilter == status;
+    Color color = isSelected ? primaryColor : Colors.grey[700]!;
+
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _selectedFilter = status;
+            _filterPatients();
+          });
+        },
+        borderRadius: BorderRadius.circular(10),
+        child: AnimatedContainer(
+          duration: Duration(milliseconds: 200),
+          padding: EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? primaryColor.withOpacity(0.1) : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: isSelected ? primaryColor : Colors.grey[300]!)
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: color, size: 20),
+              SizedBox(width: 6),
+              Text(
+                text,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  // ==========================================================
+
+  // Thẻ bệnh nhân (giữ nguyên)
   Widget _buildPatientCard(BuildContext context, Patient patient) {
+    // ... code giữ nguyên
     final statusColor = _getStatusColor(patient.status);
     return Card(
       margin: EdgeInsets.only(bottom: 12),
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () {
           Navigator.push(context, MaterialPageRoute(builder: (context) => PatientDetailsScreen(patient: patient)));
@@ -196,15 +200,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
         borderRadius: BorderRadius.circular(12),
         child: Row(
           children: [
-            // Dải màu trạng thái
-            Container(
-              width: 8,
-              height: 120,
-              decoration: BoxDecoration(
-                color: statusColor,
-                borderRadius: BorderRadius.only(topLeft: Radius.circular(12), bottomLeft: Radius.circular(12)),
-              ),
-            ),
+            Container(width: 8, height: 120, decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.only(topLeft: Radius.circular(12), bottomLeft: Radius.circular(12)))),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
@@ -215,18 +211,12 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                     SizedBox(height: 4),
                     Text("Mã BN: ${patient.id}", style: TextStyle(fontSize: 15, color: Colors.grey[600])),
                     Divider(height: 16),
-                    // Hiển thị chỉ số quan trọng nếu có
                     if (patient.status != AIStatus.stable)
                       Row(
                         children: [
                           Icon(Icons.trending_down, color: statusColor, size: 20),
                           SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              "${patient.criticalMetric}: ${patient.criticalValue}",
-                              style: TextStyle(fontSize: 15, color: statusColor, fontWeight: FontWeight.bold),
-                            ),
-                          ),
+                          Expanded(child: Text("${patient.criticalMetric}: ${patient.criticalValue}", style: TextStyle(fontSize: 15, color: statusColor, fontWeight: FontWeight.bold))),
                         ],
                       )
                     else 

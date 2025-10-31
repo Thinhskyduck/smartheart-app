@@ -1,14 +1,17 @@
 // Tên file: lib/doctor/patient_details_screen.dart
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart'; // THÊM IMPORT BIỂU ĐỒ
-import 'doctor_dashboard_screen.dart'; // Import model
+import 'package:fl_chart/fl_chart.dart';
+import 'doctor_dashboard_screen.dart';
 
-// Dùng lại màu chính
 const Color primaryColor = Color(0xFF2260FF);
 
 // Giả lập model Cảnh báo
 class Alert {
-  final String id; final AIStatus type; final String title; final String description; final DateTime timestamp;
+  final String id;
+  final AIStatus type;
+  final String title;
+  final String description;
+  final DateTime timestamp;
   Alert({required this.id, required this.type, required this.title, required this.description, required this.timestamp});
 }
 
@@ -23,6 +26,54 @@ class PatientDetailsScreen extends StatelessWidget {
     Alert(id: "A03", type: AIStatus.warning, title: "HRV Giảm", description: "AI Lớp 2 phát hiện HRV giảm 30% so với trung bình tuần.", timestamp: DateTime.now().subtract(Duration(days: 1))),
     Alert(id: "A04", type: AIStatus.stable, title: "Uống thuốc", description: "Bệnh nhân đã xác nhận uống thuốc buổi tối.", timestamp: DateTime.now().subtract(Duration(days: 1, hours: 2))),
   ];
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 4,
+      child: Scaffold(
+        backgroundColor: Colors.grey[200],
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 1,
+          title: Text(patient.name, style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          iconTheme: IconThemeData(color: Colors.black),
+          actions: [
+            IconButton(
+              icon: Icon(Icons.message_outlined, color: primaryColor),
+              onPressed: () {},
+            ),
+            IconButton(
+              icon: Icon(Icons.call_outlined, color: Colors.green[700]),
+              onPressed: () {},
+            ),
+          ],
+          bottom: TabBar(
+            labelColor: primaryColor,
+            unselectedLabelColor: Colors.grey[600],
+            indicatorColor: primaryColor,
+            isScrollable: false,
+            tabs: [
+              Tab(child: Text("Tổng quan")),
+              Tab(child: Text("Biểu đồ")),
+              Tab(child: Text("Lịch sử")),
+              Tab(child: Text("Hồ sơ")),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            _buildOverviewTab(context),
+            _buildVitalsTab(),
+            _buildAlertsHistoryTab(context), // Truyền context vào đây
+            _buildProfileTab(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // === CÁC WIDGET CHO TỪNG TAB ===
 
   Color _getStatusColor(AIStatus status) {
     switch (status) {
@@ -40,62 +91,12 @@ class PatientDetailsScreen extends StatelessWidget {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 4, // ĐỔI SANG 4 TABS
-      child: Scaffold(
-        backgroundColor: Colors.grey[200],
-        appBar: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 1,
-          title: Text(patient.name, style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-          iconTheme: IconThemeData(color: Colors.black),
-          actions: [
-            IconButton(
-              icon: Icon(Icons.message_outlined, color: primaryColor),
-              onPressed: () { /* Logic nhắn tin */ },
-            ),
-            IconButton(
-              icon: Icon(Icons.call_outlined, color: Colors.green[700]),
-              onPressed: () { /* Logic gọi điện */ },
-            ),
-          ],
-          // --- TAB BAR MỚI ---
-          bottom: TabBar(
-            labelColor: primaryColor,
-            unselectedLabelColor: Colors.grey[600],
-            indicatorColor: primaryColor,
-            isScrollable: false,
-            tabs: [
-              Tab(child: Text("Tổng quan")),
-              Tab(child: Text("Biểu đồ")),
-              Tab(child: Text("Lịch sử")),
-              Tab(child: Text("Hồ sơ")),
-            ],
-          ),
-        ),
-        body: TabBarView(
-          children: [
-            _buildOverviewTab(context), // TAB MỚI
-            _buildVitalsTab(),          // TAB NÂNG CẤP
-            _buildAlertsHistoryTab(),   // TAB NÂNG CẤP
-            _buildProfileTab(),         // TAB NÂNG CẤP
-          ],
-        ),
-      ),
-    );
-  }
-
-  // === CÁC WIDGET CHO TỪNG TAB ===
-
-  // 1. TAB TỔNG QUAN (MỚI)
+  // 1. TAB TỔNG QUAN
   Widget _buildOverviewTab(BuildContext context) {
     final statusColor = _getStatusColor(patient.status);
     return ListView(
       padding: EdgeInsets.all(16),
       children: [
-        // Thẻ trạng thái
         Card(
           color: statusColor,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -106,14 +107,13 @@ class PatientDetailsScreen extends StatelessWidget {
                 Text("Trạng thái hiện tại", style: TextStyle(fontSize: 18, color: Colors.white70)),
                 SizedBox(height: 8),
                 Text(_getStatusText(patient.status).toUpperCase(), style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
-                 SizedBox(height: 8),
+                SizedBox(height: 8),
                 Text(patient.lastAlert, style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.9)), textAlign: TextAlign.center),
               ],
             ),
           ),
         ),
         SizedBox(height: 16),
-        // Thẻ các chỉ số chính
         Card(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: Padding(
@@ -127,8 +127,8 @@ class PatientDetailsScreen extends StatelessWidget {
                 _buildVitalsRow(Icons.air, "SpO2", "96%", Colors.blue),
                 _buildVitalsRow(Icons.show_chart, "HRV", "42 ms", Colors.green),
               ],
-            )
-          )
+            ),
+          ),
         )
       ],
     );
@@ -149,7 +149,7 @@ class PatientDetailsScreen extends StatelessWidget {
     );
   }
 
-  // 2. TAB BIỂU ĐỒ (NÂNG CẤP)
+  // 2. TAB BIỂU ĐỒ
   Widget _buildVitalsTab() {
     return ListView(
       padding: EdgeInsets.all(16),
@@ -157,7 +157,7 @@ class PatientDetailsScreen extends StatelessWidget {
         _buildVitalsChartCard("Nhịp tim lúc nghỉ (7 ngày)", Colors.red, [65, 66, 68, 75, 70, 68, 92], "bpm"),
         SizedBox(height: 16),
         _buildVitalsChartCard("SpO2 ban đêm (7 ngày)", Colors.blue, [96, 97, 95, 96, 94, 95, 89], "%"),
-         SizedBox(height: 16),
+        SizedBox(height: 16),
         _buildVitalsChartCard("Biến thiên nhịp tim (7 ngày)", Colors.green, [42, 45, 41, 38, 35, 30, 25], "ms"),
       ],
     );
@@ -183,12 +183,8 @@ class PatientDetailsScreen extends StatelessWidget {
                   borderData: FlBorderData(show: false),
                   lineBarsData: [
                     LineChartBarData(
-                      spots: spots,
-                      isCurved: true,
-                      color: color,
-                      barWidth: 4,
-                      isStrokeCapRound: true,
-                      dotData: FlDotData(show: false),
+                      spots: spots, isCurved: true, color: color, barWidth: 4,
+                      isStrokeCapRound: true, dotData: FlDotData(show: false),
                       belowBarData: BarAreaData(show: true, color: color.withOpacity(0.2)),
                     )
                   ],
@@ -201,8 +197,23 @@ class PatientDetailsScreen extends StatelessWidget {
     );
   }
 
-  // 3. TAB LỊCH SỬ CẢNH BÁO (NÂNG CẤP)
-  Widget _buildAlertsHistoryTab() {
+  // 3. TAB LỊCH SỬ CẢNH BÁO
+  Widget _buildAlertsHistoryTab(BuildContext context) {
+    // Nếu không có cảnh báo nào, hiển thị một thông báo
+    if (_alerts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.history_toggle_off, size: 60, color: Colors.grey[400]),
+            SizedBox(height: 16),
+            Text("Không có lịch sử cảnh báo nào.", style: TextStyle(fontSize: 17, color: Colors.grey[600])),
+          ],
+        ),
+      );
+    }
+    
+    // Nếu có, hiển thị ListView
     return ListView.builder(
       padding: EdgeInsets.symmetric(vertical: 16, horizontal: 8),
       itemCount: _alerts.length,
@@ -215,14 +226,14 @@ class PatientDetailsScreen extends StatelessWidget {
 
   Widget _buildAlertTimelineItem(BuildContext context, Alert alert, bool isFirst, bool isLast) {
     final color = _getStatusColor(alert.type);
-    final icon = alert.type == AIStatus.danger ? Icons.dangerous_outlined : 
-                 alert.type == AIStatus.warning ? Icons.warning_amber_rounded : Icons.check_circle_outline;
+    final icon = alert.type == AIStatus.danger ? Icons.dangerous_outlined
+        : alert.type == AIStatus.warning ? Icons.warning_amber_rounded
+        : Icons.check_circle_outline;
 
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Timeline indicator
           Container(
             width: 40,
             child: Column(
@@ -234,7 +245,6 @@ class PatientDetailsScreen extends StatelessWidget {
               ],
             ),
           ),
-          // Content Card
           Expanded(
             child: Container(
               margin: EdgeInsets.only(bottom: 12, right: 8, top: 4),
@@ -245,21 +255,21 @@ class PatientDetailsScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                       Text(alert.title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
-                       SizedBox(height: 4),
-                       Text(alert.description, style: TextStyle(fontSize: 15)),
-                       SizedBox(height: 8),
-                       Text("Thời gian: ${TimeOfDay.fromDateTime(alert.timestamp).format(context)} - ${alert.timestamp.day}/${alert.timestamp.month}", style: TextStyle(fontSize: 13, color: Colors.grey[600])),
-                       if (alert.type != AIStatus.stable) ...[
-                         Divider(),
-                         Row(
-                           mainAxisAlignment: MainAxisAlignment.end,
-                           children: [
-                             TextButton(onPressed: (){}, child: Text("Bỏ qua")),
-                             ElevatedButton(onPressed: (){}, child: Text("Xác nhận"), style: ElevatedButton.styleFrom(backgroundColor: color))
-                           ],
-                         )
-                       ]
+                      Text(alert.title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+                      SizedBox(height: 4),
+                      Text(alert.description, style: TextStyle(fontSize: 15)),
+                      SizedBox(height: 8),
+                      Text("Thời gian: ${TimeOfDay.fromDateTime(alert.timestamp).format(context)} - ${alert.timestamp.day}/${alert.timestamp.month}", style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                      if (alert.type != AIStatus.stable) ...[
+                        Divider(),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(onPressed: () {}, child: Text("Bỏ qua")),
+                            ElevatedButton(onPressed: () {}, child: Text("Xác nhận"), style: ElevatedButton.styleFrom(backgroundColor: color))
+                          ],
+                        )
+                      ]
                     ],
                   ),
                 ),
@@ -271,7 +281,7 @@ class PatientDetailsScreen extends StatelessWidget {
     );
   }
 
-  // 4. TAB HỒ SƠ (NÂNG CẤP)
+  // 4. TAB HỒ SƠ
   Widget _buildProfileTab() {
     return ListView(
       padding: EdgeInsets.all(16),
@@ -285,10 +295,10 @@ class PatientDetailsScreen extends StatelessWidget {
         _buildProfileSectionCard("Thông tin Y tế", [
           _buildProfileInfoTile("Chẩn đoán", "Suy tim mạn tính (CHF) - NYHA II"),
           _buildProfileInfoTile("Bác sĩ điều trị", "BS. Nguyễn Thị Yến"),
-           _buildProfileInfoTile("Thuốc đang sử dụng", "Aspirin, Metoprolol, Atorvastatin, Lisinopril"),
+          _buildProfileInfoTile("Thuốc đang sử dụng", "Aspirin, Metoprolol, Atorvastatin, Lisinoprol"),
         ]),
         SizedBox(height: 16),
-         _buildProfileSectionCard("Liên hệ", [
+        _buildProfileSectionCard("Liên hệ", [
           _buildProfileInfoTile("Số điện thoại", "090 xxx 1234"),
           _buildProfileInfoTile("Người nhà", "Trần Văn B (Con trai) - 098 xxx 5678"),
         ]),
