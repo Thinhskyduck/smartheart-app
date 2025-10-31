@@ -18,7 +18,7 @@ class ProfileScreen extends StatelessWidget {
       body: ListView(
         padding: EdgeInsets.all(16),
         children: [
-          _buildProfileCard("Thân Quốc Thịnh", "52200112"), // Mã BN
+          _buildProfileCard("Nguyễn Văn A", "92345645"), // Mã BN
           SizedBox(height: 24),
 
           _buildSectionHeader("Liên hệ & Hỗ trợ"),
@@ -87,7 +87,7 @@ class ProfileScreen extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 35,
-                backgroundColor: primaryColor.withOpacity(0.1),
+                backgroundColor: primaryColor.withValues(alpha: 0.1),
                 child:
                     Icon(Icons.person, size: 40, color: primaryColor),
               ),
@@ -141,7 +141,7 @@ class ProfileScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.05),
+            color: Colors.grey.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: Offset(0, 3)
           )

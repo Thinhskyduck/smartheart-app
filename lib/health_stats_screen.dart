@@ -191,7 +191,7 @@ class HealthStatsScreen extends StatelessWidget {
             : ExtraLinesData(horizontalLines: [
                 HorizontalLine(
                   y: baseline,
-                  color: Colors.grey.withOpacity(0.5),
+                  color: Colors.grey.withValues(alpha: 0.5),
                   strokeWidth: 1.5,
                   dashArray: [6, 4],
                   label: HorizontalLineLabel(
@@ -215,8 +215,8 @@ class HealthStatsScreen extends StatelessWidget {
               show: true,
               gradient: LinearGradient(
                 colors: [
-                  color.withOpacity(0.25),
-                  color.withOpacity(0.0),
+                  color.withValues(alpha: 0.25),
+                  color.withValues(alpha: 0.0),
                 ],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,

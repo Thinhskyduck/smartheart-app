@@ -104,7 +104,7 @@ class _SymptomReportScreenState extends State<SymptomReportScreen> {
                         }
                       });
                     },
-                    selectedColor: primaryColor.withOpacity(0.2), // Màu nhạt
+                    selectedColor: primaryColor.withValues(alpha: 0.2), // Màu nhạt
                     checkmarkColor: primaryColor,
                     labelStyle: TextStyle(
                       color: isSelected ? primaryColor : Colors.black87,

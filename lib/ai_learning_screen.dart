@@ -11,7 +11,7 @@ class _AiLearningScreenState extends State<AiLearningScreen> {
   @override
   void initState() {
     super.initState();
-    // Tự động chuyển qua màn hình chính sau 5 giây
+    // Tự động chuyển qua màn hình chính sau 10 giây (như code của bạn)
     Future.delayed(Duration(seconds: 10), () {
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
@@ -37,9 +37,10 @@ class _AiLearningScreenState extends State<AiLearningScreen> {
                 size: 120,
               ),
               SizedBox(height: 32),
-              // Tiêu đề
+              
+              // ======== CẬP NHẬT TIÊU ĐỀ ========
               Text(
-                "AI đang học về bạn",
+                "Đang hiệu chỉnh AI",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 28,
@@ -48,9 +49,10 @@ class _AiLearningScreenState extends State<AiLearningScreen> {
                 ),
               ),
               SizedBox(height: 16),
-              // Nội dung giải thích
+              
+              // ======== CẬP NHẬT NỘI DUNG GIẢI THÍCH (CHO ĐỀ XUẤT 4) ========
               Text(
-                "Trong 7-10 ngày tới, AI sẽ phân tích để học các chỉ số nền (baseline) của riêng bạn.\n\nCác cảnh báo nguy hiểm cấp tính (Lớp 1) vẫn hoạt động 24/7.",
+                "Mô hình AI đã được huấn luyện. Trong 7-10 ngày tới, AI sẽ thu thập dữ liệu để 'hiệu chỉnh' các chỉ số nền (baseline) của riêng bạn.\n\nĐiều này giúp các cảnh báo cá nhân hóa (Lớp 2) hoạt động chính xác nhất.",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 18,
@@ -58,11 +60,15 @@ class _AiLearningScreenState extends State<AiLearningScreen> {
                   height: 1.5,
                 ),
               ),
+              // ======== KẾT THÚC CẬP NHẬT ========
+              
               SizedBox(height: 40),
               // Hiệu ứng "đang học"
               LinearProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
-                backgroundColor: primaryColor.withOpacity(0.2),
+                // ======== SỬA LỖI withOpacity ========
+                backgroundColor: primaryColor.withAlpha((255 * 0.2).round()),
+                // ======== KẾT THÚC SỬA ========
                 minHeight: 10,
               ),
               SizedBox(height: 12),
@@ -76,8 +82,10 @@ class _AiLearningScreenState extends State<AiLearningScreen> {
                 ),
               ),
               SizedBox(height: 60),
+              
+              // ======== SỬA LỖI LOGIC (5 giây -> 10 giây) ========
               Text(
-                "(Bạn sẽ được tự động chuyển đến Trang chủ sau 5 giây)",
+                "(Bạn sẽ được tự động chuyển đến Trang chủ sau 10 giây)",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,

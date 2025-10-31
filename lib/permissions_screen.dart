@@ -38,7 +38,7 @@ class PermissionsScreen extends StatelessWidget {
               ),
               SizedBox(height: 16),
               Text(
-                "HeartGuard AI cần quyền truy cập dữ liệu từ Google Fit (Android) hoặc Health (Apple) để:",
+                "PentaPulse App cần quyền truy cập dữ liệu từ Google Fit (Android) hoặc Health (Apple) để:",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 18,

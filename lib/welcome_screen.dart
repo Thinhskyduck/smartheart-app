@@ -29,7 +29,7 @@ class WelcomeScreen extends StatelessWidget {
                     // ======== KẾT THÚC SỬA ========
                     SizedBox(height: 20),
                     Text(
-                      "Chào mừng đến với\nHeartGuard AI",
+                      "Chào mừng đến với\nPentaPulse App",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 32,
