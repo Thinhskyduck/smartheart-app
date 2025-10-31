@@ -12,7 +12,7 @@ class _AiLearningScreenState extends State<AiLearningScreen> {
   void initState() {
     super.initState();
     // Tự động chuyển qua màn hình chính sau 10 giây (như code của bạn)
-    Future.delayed(Duration(seconds: 10), () {
+    Future.delayed(Duration(seconds: 5), () {
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
       }
@@ -85,7 +85,7 @@ class _AiLearningScreenState extends State<AiLearningScreen> {
               
               // ======== SỬA LỖI LOGIC (5 giây -> 10 giây) ========
               Text(
-                "(Bạn sẽ được tự động chuyển đến Trang chủ sau 10 giây)",
+                "(Bạn sẽ được tự động chuyển đến Trang chủ sau vài giây)",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,

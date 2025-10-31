@@ -66,7 +66,7 @@ class ProfileScreen extends StatelessWidget {
             color: Colors.red[700]!,
             onTap: () {
               Navigator.pushNamedAndRemoveUntil(
-                  context, '/', (route) => false);
+                  context, '/role-selection', (route) => false);
             },
             showArrow: false, // Không cần mũi tên cho nút Đăng xuất
           ),
