@@ -16,6 +16,9 @@ import 'ai_learning_screen.dart';
 import 'chat_screen.dart';
 import 'faq_screen.dart';
 
+// ======== IMPORT CÁC MÀN HÌNH MỚI ========
+import 'role_selection_screen.dart';      // Màn hình chọn vai trò
+import 'doctor/doctor_dashboard_screen.dart'; // Màn hình dashboard của bác sĩ
 // ======== THÊM MÀU CHÍNH CỦA BẠN ========
 const Color primaryColor = Color(0xFF2260FF);
 
@@ -29,7 +32,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'HeartGuard AI',
+      title: 'PentaPulse App',
       theme: ThemeData(
         primaryColor: primaryColor,
         // Đặt màu cho nút bấm để đồng bộ
@@ -46,9 +49,10 @@ class MyApp extends StatelessWidget {
         ),
       ),
 
-      initialRoute: '/',
+      initialRoute: '/role-selection',
       routes: {
-        '/': (context) => CheckAuthScreen(),
+        '/role-selection': (context) => RoleSelectionScreen(),
+        
         '/onboarding': (context) => WelcomeScreen(),
         '/permissions': (context) => PermissionsScreen(),
         '/activate': (context) => ActivationScreen(),
@@ -57,6 +61,8 @@ class MyApp extends StatelessWidget {
         '/home': (context) => MainAppShell(),
         '/chat': (context) => ChatScreen(),
         '/faq': (context) => FaqScreen(),
+        // --- LUỒNG BÁC SĨ ---
+        '/doctor-dashboard': (context) => DoctorDashboardScreen(),
       },
     );
   }
