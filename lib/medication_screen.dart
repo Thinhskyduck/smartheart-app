@@ -1,6 +1,7 @@
-// Tên file: lib/medication_screen.dart
 import 'package:flutter/material.dart';
-import 'package:startup_pharmacy/services/medication_service.dart'; // IMPORT SERVICE
+import 'services/medication_service.dart';
+import 'medication/scan_result_screen.dart';
+import 'medication/edit_medication_screen.dart'; // Import file mới
 
 const Color primaryColor = Color(0xFF2260FF);
 
@@ -10,22 +11,46 @@ class MedicationScreen extends StatefulWidget {
 }
 
 class _MedicationScreenState extends State<MedicationScreen> {
-  // Lắng nghe các thay đổi từ service
   @override
   void initState() {
     super.initState();
-    // Khi service thay đổi dữ liệu, gọi setState để build lại giao diện
-    medicationService.addListener(_onDataChanged);
+    medicationService.addListener(_update);
   }
 
   @override
   void dispose() {
-    medicationService.removeListener(_onDataChanged);
+    medicationService.removeListener(_update);
     super.dispose();
   }
 
-  void _onDataChanged() {
-    setState(() {});
+  void _update() => setState(() {});
+
+  // LOGIC HỎI QUYỀN CAMERA
+  void _requestCameraPermission() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Cấp quyền Camera?"),
+        content: Text("Ứng dụng cần truy cập Camera để quét đơn thuốc của bạn."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), // Từ chối
+            child: Text("Từ chối", style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context); // Tắt dialog
+              // Chuyển sang màn hình Scan
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => ScanResultScreen(imagePath: 'assets/images/app_logo.png')),
+              );
+            },
+            child: Text("Cho phép"),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -33,158 +58,60 @@ class _MedicationScreenState extends State<MedicationScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 1,
-        title: Text(
-          "Lịch uống thuốc",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
+        title: Text("Lịch uống thuốc", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        actions: [
+          // NÚT SCAN CÓ HỎI QUYỀN
+          IconButton(
+            icon: Icon(Icons.document_scanner, color: primaryColor),
+            onPressed: _requestCameraPermission,
+          ),
+        ],
       ),
       body: ListView(
         padding: EdgeInsets.all(16),
         children: [
-          // Thẻ tóm tắt tiến độ mới
-          _buildProgressSummaryCard(),
-          SizedBox(height: 24),
-          // Các khu vực thuốc
-          _buildMedicationSection(
-              "Buổi Sáng", medicationService.morningMeds, Icons.light_mode),
-          SizedBox(height: 24),
-          _buildMedicationSection(
-              "Buổi Tối", medicationService.eveningMeds, Icons.dark_mode),
+          _buildSection("Buổi Sáng", medicationService.morningMeds),
+          _buildSection("Buổi Tối", medicationService.eveningMeds),
         ],
       ),
     );
   }
 
-  // WIDGET MỚI: Thẻ tóm tắt
-  Widget _buildProgressSummaryCard() {
-    final morningMeds = medicationService.morningMeds;
-    final eveningMeds = medicationService.eveningMeds;
-
-    final morningTaken = morningMeds.where((m) => m.isTaken).length;
-    final eveningTaken = eveningMeds.where((m) => m.isTaken).length;
-
-    final totalTaken = morningTaken + eveningTaken;
-    final totalMeds = morningMeds.length + eveningMeds.length;
-    final progress = totalMeds > 0 ? totalTaken / totalMeds : 0.0;
-
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("Tiến độ hôm nay", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 12,
-                      backgroundColor: Colors.grey[300],
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
-                    ),
-                  ),
-                ),
-                SizedBox(width: 16),
-                Text(
-                  "$totalTaken / $totalMeds",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            SizedBox(height: 8),
-            Text(
-              "Sáng: $morningTaken/${morningMeds.length}  •  Tối: $eveningTaken/${eveningMeds.length}",
-              style: TextStyle(fontSize: 15, color: Colors.grey[600]),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Widget cho 1 khu vực (Sáng/Tối) - Được nâng cấp
-  Widget _buildMedicationSection(
-      String title, List<Medication> meds, IconData icon) {
+  Widget _buildSection(String title, List<Medication> meds) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Icon(icon, color: Colors.grey[700]),
-            SizedBox(width: 8),
-            Text(
-              title,
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Text(title, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        ),
+        if (meds.isEmpty) Text("Không có thuốc"),
+        ...meds.map((m) => Card(
+          child: ListTile( // Đổi từ CheckboxListTile sang ListTile để tùy biến dễ hơn
+            leading: Checkbox(
+              value: m.isTaken,
+              activeColor: Colors.green,
+              onChanged: (val) => medicationService.toggleMedicationStatus(m.id, val!),
             ),
-          ],
-        ),
-        SizedBox(height: 12),
-        if (meds.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20.0),
-            child: Center(child: Text("Không có thuốc nào trong buổi này.")),
-          )
-        else
-          ...meds.map((med) => _buildMedicationCard(med)).toList(),
+            title: Text(m.name, style: TextStyle(fontWeight: FontWeight.bold, decoration: m.isTaken ? TextDecoration.lineThrough : null)),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("${m.dosage} • Lúc ${m.time}"),
+                Text("Còn: ${m.quantity} viên", style: TextStyle(color: m.quantity < 5 ? Colors.red : Colors.grey, fontSize: 12)),
+              ],
+            ),
+            trailing: IconButton(
+              icon: Icon(Icons.edit, color: Colors.grey),
+              onPressed: () {
+                // Mở màn hình chỉnh sửa
+                Navigator.push(context, MaterialPageRoute(builder: (context) => EditMedicationScreen(medication: m)));
+              },
+            ),
+          ),
+        )).toList(),
+        SizedBox(height: 16),
       ],
-    );
-  }
-
-  // Widget thẻ thuốc - GIAO DIỆN MỚI
-  Widget _buildMedicationCard(Medication med) {
-    return Card(
-      elevation: 0.5,
-      margin: EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: med.isTaken ? Colors.green[200]! : Colors.grey[200]!,
-          width: 1,
-        ),
-      ),
-      color: med.isTaken ? Colors.green[50] : Colors.white,
-      child: CheckboxListTile(
-        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-        title: Text(
-          med.name,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            decoration: med.isTaken ? TextDecoration.lineThrough : null,
-            color: med.isTaken ? Colors.black54 : Colors.black87,
-          ),
-        ),
-        subtitle: Text(
-          med.dosage,
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey[600],
-            decoration: med.isTaken ? TextDecoration.lineThrough : null,
-          ),
-        ),
-        value: med.isTaken,
-        onChanged: (bool? value) {
-          // Gọi service để cập nhật trạng thái
-          medicationService.toggleMedicationStatus(med.id, value ?? false);
-        },
-        secondary: Padding(
-          padding: const EdgeInsets.only(left: 8.0),
-          child: Icon(
-            Icons.medication_liquid,
-            color: med.isTaken ? Colors.green : primaryColor,
-            size: 40,
-          ),
-        ),
-        activeColor: Colors.green,
-      ),
     );
   }
 }

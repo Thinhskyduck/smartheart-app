@@ -10,6 +10,11 @@ dependencies:
   flutter:
     sdk: flutter
   fl_chart: ^1.1.1
+  flutter_local_notifications: ^19.4.2
+  health: ^13.2.1
+  permission_handler: ^11.3.1
+  http: ^1.2.0
+  shared_preferences: ^2.3.3
 
 dev_dependencies:
   flutter_test:

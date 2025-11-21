@@ -1,14 +1,22 @@
 // Tên file: lib/alert_dialogs.dart
 import 'package:flutter/material.dart';
+import 'package:startup_pharmacy/services/notification_service.dart'; // Đảm bảo đường dẫn import đúng với dự án của bạn
 
 // Mã màu chính của bạn
 const Color primaryColor = Color(0xFF2260FF);
 
 // 1. HÀM GỌI CẢNH BÁO ĐỎ (LỚP 1 - NGUY HIỂM)
 void showDangerAlert(BuildContext context) {
+  // === KÍCH HOẠT THÔNG BÁO ÂM THANH NGAY LẬP TỨC ===
+  NotificationService.showAlertNotification(
+    title: "⚠️ NGUY HIỂM: SpO2 Thấp",
+    body: "Chỉ số SpO2 của bạn giảm xuống 89%. Cần hành động ngay!",
+  );
+  // ==================================================
+
   showDialog(
     context: context,
-    barrierDismissible: false, // Bắt buộc người dùng phải tương tác
+    barrierDismissible: false, // Bắt buộc người dùng phải tương tác (không bấm ra ngoài được)
     builder: (BuildContext context) {
       return Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
@@ -19,7 +27,7 @@ void showDangerAlert(BuildContext context) {
             borderRadius: BorderRadius.circular(20.0),
           ),
           child: Column(
-            mainAxisSize: MainAxisSize.min, // Cực kỳ quan trọng
+            mainAxisSize: MainAxisSize.min, // Cực kỳ quan trọng để dialog không chiếm hết màn hình
             children: [
               // Icon
               Container(
@@ -63,7 +71,7 @@ void showDangerAlert(BuildContext context) {
                 ),
                 child: Text("Gọi Cấp Cứu 115"),
                 onPressed: () {
-                  // Logic gọi 115
+                  // Logic gọi 115 thực tế sẽ đặt ở đây
                   Navigator.of(context).pop();
                 },
               ),
@@ -88,6 +96,13 @@ void showDangerAlert(BuildContext context) {
 
 // 2. HÀM GỌI CẢNH BÁO VÀNG (LỚP 2 - BẤT THƯỜNG)
 void showWarningAlert(BuildContext context) {
+  // === KÍCH HOẠT THÔNG BÁO ===
+  NotificationService.showAlertNotification(
+    title: "Cảnh báo: Nhịp tim bất thường",
+    body: "Nhịp tim nghỉ tăng 20% so với bình thường.",
+  );
+  // ===========================
+
   showDialog(
     context: context,
     barrierDismissible: true, // Cho phép bấm ra ngoài để tắt
@@ -132,10 +147,10 @@ void showWarningAlert(BuildContext context) {
                 style: TextStyle(fontSize: 17, height: 1.5),
               ),
               SizedBox(height: 24),
-              // Nút 1: Liên hệ Bác sĩ (Nút chính, màu của bạn)
+              // Nút 1: Liên hệ Bác sĩ (Nút chính, dùng màu Primary)
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor, // <-- DÙNG MÀU CHÍNH
+                  backgroundColor: primaryColor, 
                   foregroundColor: Colors.white,
                   minimumSize: Size(double.infinity, 50),
                   shape: RoundedRectangleBorder(
@@ -145,8 +160,9 @@ void showWarningAlert(BuildContext context) {
                 ),
                 child: Text("Liên hệ Bác sĩ"),
                 onPressed: () {
-                  // Logic mở màn hình nhắn tin
+                  // Logic mở màn hình nhắn tin hoặc gọi điện
                   Navigator.of(context).pop();
+                  // Ví dụ: Navigator.pushNamed(context, '/chat');
                 },
               ),
               SizedBox(height: 10),

@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:startup_pharmacy/edit_profile_screen.dart';
+import 'package:startup_pharmacy/services/auth_service.dart';
+// Import màn hình hướng dẫn chăm sóc (đảm bảo đường dẫn file chính xác trong project của bạn)
+import 'package:startup_pharmacy/content/home_care_screen.dart'; 
 
 const Color primaryColor = Color(0xFF2260FF);
 
 class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    // Lấy thông tin user hiện tại từ AuthService
+    final user = authService.currentUser;
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
@@ -18,9 +25,98 @@ class ProfileScreen extends StatelessWidget {
       body: ListView(
         padding: EdgeInsets.all(16),
         children: [
-          _buildProfileCard("Nguyễn Văn A", "92345645"), // Mã BN
+          // 1. Thẻ Profile có nút Edit
+          Stack(
+            children: [
+              // Hiển thị thông tin từ user thực tế
+              _buildProfileCard(
+                user?.fullName ?? "Người dùng", 
+                user?.phoneNumber ?? "Chưa cập nhật" // Hoặc ID nếu có
+              ),
+              Positioned(
+                right: 8, // Căn lề phải một chút cho đẹp
+                top: 0,
+                bottom: 0,
+                child: Center(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(color: Colors.black12, blurRadius: 4)
+                      ]
+                    ),
+                    child: IconButton(
+                      icon: Icon(Icons.edit, color: primaryColor),
+                      onPressed: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => EditProfileScreen()));
+                      },
+                    ),
+                  ),
+                ),
+              )
+            ],
+          ),
           SizedBox(height: 24),
 
+          // 2. CHỈ HIỆN THỊ NẾU LÀ BỆNH NHÂN (Logic Người giám hộ cũ)
+          if (authService.currentUser?.role == UserRole.patient) ...[
+            _buildSectionHeader("Người giám hộ"),
+            _buildActionTile(
+              context,
+              title: "Thêm người giám hộ",
+              icon: Icons.person_add,
+              color: Colors.pink,
+              onTap: () {
+                // 1. Tạo mã
+                String code = authService.generateLinkingCode();
+                
+                // 2. Hiển thị mã lên Dialog
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text("Mã kết nối Người nhà"),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text("Đưa mã này cho người nhà nhập lúc đăng ký:", textAlign: TextAlign.center),
+                        SizedBox(height: 20),
+                        Text(
+                          code,
+                          style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: primaryColor, letterSpacing: 5),
+                        ),
+                        SizedBox(height: 10),
+                        Text("(Mã có hiệu lực trong 5 phút)", style: TextStyle(color: Colors.red, fontStyle: FontStyle.italic)),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(context), child: Text("Đóng"))
+                    ],
+                  ),
+                );
+              },
+            ),
+            SizedBox(height: 24),
+          ],
+
+          // 3. MỤC MỚI: KIẾN THỨC & HƯỚNG DẪN
+          _buildSectionHeader("Kiến thức & Hướng dẫn"),
+          _buildActionTile(
+            context,
+            title: "Hướng dẫn chăm sóc Suy tim",
+            icon: Icons.volunteer_activism, // Icon trái tim trên tay
+            color: Colors.pink,
+            onTap: () {
+               // Chuyển hướng sang màn hình HomeCareScreen
+               Navigator.push(
+                 context, 
+                 MaterialPageRoute(builder: (context) => HomeCareScreen())
+               );
+            },
+          ),
+          SizedBox(height: 24),
+
+          // 4. Liên hệ & Hỗ trợ (Cũ)
           _buildSectionHeader("Liên hệ & Hỗ trợ"),
           _buildActionTile(
             context,
@@ -49,6 +145,8 @@ class ProfileScreen extends StatelessWidget {
           ),
 
           SizedBox(height: 24),
+
+          // 5. Cài đặt & Bảo mật (Cũ)
           _buildSectionHeader("Cài đặt & Bảo mật"),
           _buildActionTile(
             context,
@@ -66,54 +164,55 @@ class ProfileScreen extends StatelessWidget {
             color: Colors.red[700]!,
             onTap: () {
               Navigator.pushNamedAndRemoveUntil(
-                  context, '/role-selection', (route) => false);
+                  context, '/login', (route) => false);
             },
             showArrow: false, // Không cần mũi tên cho nút Đăng xuất
           ),
+          SizedBox(height: 30),
         ],
       ),
     );
   }
 
-  // Thẻ thông tin cá nhân (Giữ nguyên)
-  Widget _buildProfileCard(String name, String patientId) {
+  // --- CÁC WIDGET HELPER (Giữ nguyên style) ---
+
+  Widget _buildProfileCard(String name, String subText) {
      return Card(
         elevation: 2,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Row(
             children: [
               CircleAvatar(
                 radius: 35,
-                backgroundColor: primaryColor.withValues(alpha: 0.1),
-                child:
-                    Icon(Icons.person, size: 40, color: primaryColor),
+                backgroundColor: primaryColor.withOpacity(0.1),
+                child: Icon(Icons.person, size: 40, color: primaryColor),
               ),
               SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: TextStyle(
-                        fontSize: 22, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    "Mã BN: ${patientId}",
-                    style:
-                        TextStyle(fontSize: 16, color: Colors.grey[700]),
-                  ),
-                ],
-              )
+              Expanded( // Thêm Expanded để text không bị tràn nếu tên dài
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      subText.contains(RegExp(r'[0-9]')) ? "SĐT/Mã: $subText" : subText,
+                      style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: 40), // Khoảng trống cho nút Edit ở Stack bên trên
             ],
           ),
         ),
      );
   }
   
-  // Tiêu đề cho 1 khu vực
   Widget _buildSectionHeader(String title) {
     return Padding(
       padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
@@ -127,7 +226,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  // ======== WIDGET NÚT BẤM "XỊN" HƠN ========
   Widget _buildActionTile(BuildContext context,
       {required String title,
       required IconData icon,
@@ -141,7 +239,7 @@ class ProfileScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.05),
+            color: Colors.grey.withOpacity(0.05),
             blurRadius: 10,
             offset: Offset(0, 3)
           )

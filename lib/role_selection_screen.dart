@@ -1,10 +1,42 @@
 // Tên file: lib/role_selection_screen.dart
 import 'package:flutter/material.dart';
+import 'services/auth_service.dart'; // Import Service vừa tạo
 
-// Dùng lại màu chính
 const Color primaryColor = Color(0xFF2260FF);
 
-class RoleSelectionScreen extends StatelessWidget {
+class RoleSelectionScreen extends StatefulWidget {
+  @override
+  _RoleSelectionScreenState createState() => _RoleSelectionScreenState();
+}
+
+class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
+  final TextEditingController _codeController = TextEditingController();
+
+  void _handleUserLogin() {
+    String code = _codeController.text.trim();
+
+    if (code.isEmpty) {
+      // Không có code => Là BỆNH NHÂN mới
+      authService.loginAsPatient();
+      Navigator.pushNamed(context, '/onboarding'); 
+    } else {
+      // Có code => Kiểm tra xem có phải NGƯỜI NHÀ không
+      bool isValid = authService.validateLinkingCode(code);
+      if (isValid) {
+        authService.loginAsFamilyMember();
+        // Người nhà bỏ qua onboarding, vào thẳng trang chủ để theo dõi
+        Navigator.pushNamed(context, '/home'); 
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Đã liên kết thành công với Bệnh nhân!"), backgroundColor: Colors.green),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Mã không đúng hoặc đã hết hạn (5 phút)."), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -12,57 +44,65 @@ class RoleSelectionScreen extends StatelessWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Image.asset(
-                'assets/images/app_logo.png', // Logo của bạn
-                height: 100,
-              ),
-              SizedBox(height: 20),
-              Text(
-                "Bạn là...",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(height: 40),
+                Image.asset('assets/images/app_logo.png', height: 100), // Logo
+                SizedBox(height: 20),
+                Text(
+                  "Chào mừng quay lại",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
                 ),
-              ),
-              SizedBox(height: 40),
+                SizedBox(height: 40),
+            
+                // --- KHU VỰC NGƯỜI DÙNG (Bệnh nhân & Người nhà) ---
+                Text("Người dùng & Người thân", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey[700])),
+                SizedBox(height: 10),
+                TextField(
+                  controller: _codeController,
+                  decoration: InputDecoration(
+                    labelText: "Nhập mã liên kết (Nếu là Người nhà)",
+                    hintText: "Bỏ trống nếu bạn là Bệnh nhân",
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    prefixIcon: Icon(Icons.vpn_key),
+                  ),
+                ),
+                SizedBox(height: 16),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    minimumSize: Size(double.infinity, 55),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text("Đăng nhập / Bắt đầu", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  onPressed: _handleUserLogin,
+                ),
 
-              // Nút dành cho Bệnh nhân
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  minimumSize: Size(double.infinity, 80),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
-                ),
-                icon: Icon(Icons.personal_injury, size: 30),
-                label: Text("Bệnh nhân", style: TextStyle(fontSize: 20)),
-                onPressed: () {
-                  // Đi đến luồng của bệnh nhân
-                  Navigator.pushNamed(context, '/onboarding');
-                },
-              ),
-              SizedBox(height: 20),
+                SizedBox(height: 40),
+                Divider(),
+                SizedBox(height: 20),
 
-              // Nút dành cho Bác sĩ
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green[700], // Màu khác để phân biệt
-                  minimumSize: Size(double.infinity, 80),
-                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
+                // --- KHU VỰC BÁC SĨ ---
+                Text("Dành cho Chuyên gia", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey[700])),
+                SizedBox(height: 10),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: Size(double.infinity, 55),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    side: BorderSide(color: Colors.green[700]!, width: 2),
+                  ),
+                  icon: Icon(Icons.medical_services, color: Colors.green[700]),
+                  label: Text("Đăng nhập Bác sĩ", style: TextStyle(fontSize: 18, color: Colors.green[700], fontWeight: FontWeight.bold)),
+                  onPressed: () {
+                    authService.loginAsDoctor();
+                    Navigator.pushNamed(context, '/doctor-dashboard');
+                  },
                 ),
-                icon: Icon(Icons.medical_services, size: 30),
-                label: Text("Bác sĩ / Nhân viên Y tế", style: TextStyle(fontSize: 20)),
-                onPressed: () {
-                  // Đi đến luồng của bác sĩ
-                  Navigator.pushNamed(context, '/doctor-dashboard');
-                },
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

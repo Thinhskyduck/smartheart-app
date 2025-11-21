@@ -1,0 +1,60 @@
+const User = require('../models/User');
+
+exports.updateProfile = async (req, res) => {
+    const { fullName, phoneNumber } = req.body;
+
+    // Build object to update
+    const userFields = {};
+    if (fullName) userFields.fullName = fullName;
+    if (phoneNumber) userFields.phoneNumber = phoneNumber;
+
+    try {
+        let user = await User.findById(req.user.id);
+
+        if (!user) return res.status(404).json({ msg: 'User not found' });
+
+        user = await User.findByIdAndUpdate(
+            req.user.id,
+            { $set: userFields },
+            { new: true }
+        ).select('-password');
+
+        res.json(user);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+};
+
+exports.linkGuardian = async (req, res) => {
+    const { guardianCode } = req.body;
+
+    try {
+        // Find the guardian by code
+        const guardian = await User.findOne({ guardianCode });
+
+        if (!guardian) {
+            return res.status(404).json({ msg: 'Guardian code not found' });
+        }
+
+        // Add guardian to user's guardians list
+        const user = await User.findById(req.user.id);
+
+        // Check if already linked
+        if (user.guardians.includes(guardian.id)) {
+            return res.status(400).json({ msg: 'Guardian already linked' });
+        }
+
+        user.guardians.push(guardian.id);
+        await user.save();
+
+        // Add user to guardian's patients list
+        guardian.patients.push(user.id);
+        await guardian.save();
+
+        res.json({ msg: 'Guardian linked successfully', guardianName: guardian.fullName });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+};
