@@ -29,7 +29,11 @@ class _LoginScreenState extends State<LoginScreen> {
       var cameraStatus = await Permission.camera.status;
       
       if (cameraStatus.isGranted) {
-         Navigator.pushReplacementNamed(context, '/home');
+         if (authService.currentUser?.role == UserRole.doctor) {
+           Navigator.pushReplacementNamed(context, '/doctor-dashboard');
+         } else {
+           Navigator.pushReplacementNamed(context, '/home');
+         }
       } else {
          Navigator.pushReplacementNamed(context, '/permissions');
       }
