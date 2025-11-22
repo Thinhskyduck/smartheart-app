@@ -5,6 +5,7 @@ import 'metric_detail_screen.dart';
 import 'symptom_report_screen.dart'; 
 import 'alert_dialogs.dart';
 import 'services/health_service.dart';
+import 'staff_dashboard_screen.dart';
 
 const Color primaryColor = Color(0xFF2260FF);
 
@@ -96,6 +97,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Text("CHỈ SỐ CỦA BẠN", style: TextStyle(fontSize: 14, color: Colors.grey[600], fontWeight: FontWeight.bold)),
             SizedBox(height: 12),
             ..._metrics.map((metric) => _buildWideMetricCard(context, metric)).toList(),
+
+            SizedBox(height: 24),
+            // --- 4. DÀNH CHO BÁC SĨ (DEMO) ---
+            Center(
+              child: TextButton.icon(
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => StaffDashboardScreen()));
+                },
+                icon: Icon(Icons.admin_panel_settings, color: primaryColor),
+                label: Text("Staff Dashboard (Demo)", style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
+              ),
+            ),
+            SizedBox(height: 20),
           ],
         ),
       ),

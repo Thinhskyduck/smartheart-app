@@ -32,11 +32,13 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
 const healthRoutes = require('./routes/health');
 const medicationRoutes = require('./routes/medication');
+const staffRoutes = require('./routes/staff');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/health', healthRoutes);
 app.use('/api/medications', medicationRoutes);
+app.use('/api/staff', staffRoutes);
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);

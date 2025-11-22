@@ -15,6 +15,9 @@ const UserSchema = new mongoose.Schema({
         required: true,
         unique: true
     },
+    guardianPhone: {
+        type: String
+    },
     password: {
         type: String,
         required: true

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'services/medication_service.dart';
 import 'medication/scan_result_screen.dart';
-import 'medication/edit_medication_screen.dart'; // Import file mới
+import 'medication/edit_medication_screen.dart';
+import 'medication/add_medication_screen.dart';
 
 const Color primaryColor = Color(0xFF2260FF);
 
@@ -25,7 +26,6 @@ class _MedicationScreenState extends State<MedicationScreen> {
 
   void _update() => setState(() {});
 
-  // LOGIC HỎI QUYỀN CAMERA
   void _requestCameraPermission() {
     showDialog(
       context: context,
@@ -34,13 +34,12 @@ class _MedicationScreenState extends State<MedicationScreen> {
         content: Text("Ứng dụng cần truy cập Camera để quét đơn thuốc của bạn."),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context), // Từ chối
+            onPressed: () => Navigator.pop(context),
             child: Text("Từ chối", style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context); // Tắt dialog
-              // Chuyển sang màn hình Scan
+              Navigator.pop(context);
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => ScanResultScreen(imagePath: 'assets/images/app_logo.png')),
@@ -59,8 +58,9 @@ class _MedicationScreenState extends State<MedicationScreen> {
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: Text("Lịch uống thuốc", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
+        elevation: 0,
         actions: [
-          // NÚT SCAN CÓ HỎI QUYỀN
           IconButton(
             icon: Icon(Icons.document_scanner, color: primaryColor),
             onPressed: _requestCameraPermission,
@@ -73,6 +73,17 @@ class _MedicationScreenState extends State<MedicationScreen> {
           _buildSection("Buổi Sáng", medicationService.morningMeds),
           _buildSection("Buổi Tối", medicationService.eveningMeds),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => AddMedicationScreen()),
+          );
+        },
+        icon: Icon(Icons.add),
+        label: Text("Thêm thuốc"),
+        backgroundColor: primaryColor,
       ),
     );
   }
@@ -87,7 +98,7 @@ class _MedicationScreenState extends State<MedicationScreen> {
         ),
         if (meds.isEmpty) Text("Không có thuốc"),
         ...meds.map((m) => Card(
-          child: ListTile( // Đổi từ CheckboxListTile sang ListTile để tùy biến dễ hơn
+          child: ListTile(
             leading: Checkbox(
               value: m.isTaken,
               activeColor: Colors.green,
@@ -104,7 +115,6 @@ class _MedicationScreenState extends State<MedicationScreen> {
             trailing: IconButton(
               icon: Icon(Icons.edit, color: Colors.grey),
               onPressed: () {
-                // Mở màn hình chỉnh sửa
                 Navigator.push(context, MaterialPageRoute(builder: (context) => EditMedicationScreen(medication: m)));
               },
             ),

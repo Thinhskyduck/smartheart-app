@@ -7,12 +7,16 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ApiConfig {
-  // Auto-detect platform and use appropriate URL
   static String get BASE_URL {
     if (kIsWeb) {
       return 'http://localhost:5000'; // Web uses localhost
     } else {
-      return 'http://192.168.15.104:5000'; // Mobile uses LAN IP
+      // For USB debugging with ADB reverse, use localhost
+      // Run: adb reverse tcp:5000 tcp:5000
+      return 'http://localhost:5000'; 
+      
+      // For WiFi connection, use LAN IP instead:
+      // return 'http://192.168.15.104:5000';
     }
   }
   static const String API_VERSION = '/api';

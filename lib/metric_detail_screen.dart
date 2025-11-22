@@ -174,7 +174,9 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
                               sideTitles: SideTitles(
                                 showTitles: true,
                                 reservedSize: 30,
-                                interval: _chartData.isNotEmpty ? (_chartData.last.x - _chartData.first.x) / 4 : 1,
+                                interval: _chartData.length > 1 
+                                    ? ((_chartData.last.x - _chartData.first.x) / 4).abs().clamp(1.0, double.infinity)
+                                    : 1.0,
                                 getTitlesWidget: (value, meta) {
                                   if (_chartData.isEmpty || value < _chartData.first.x || value > _chartData.last.x) return Container();
                                   return Padding(
