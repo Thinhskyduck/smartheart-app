@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import '../services/api_service.dart';
 import '../services/api_config.dart';
-import 'patient_details_screen.dart'; // Keep this if we want to navigate to details later
+import 'patient_details_screen.dart';
 
 const Color primaryColor = Color(0xFF2260FF);
 
@@ -118,75 +118,85 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
       margin: EdgeInsets.only(bottom: 12),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: Colors.red.shade50,
-                  child: Icon(Icons.person, color: Colors.red),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PatientDetailsScreen(patientData: patientData),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: Colors.red.shade50,
+                    child: Icon(Icons.person, color: Colors.red),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          user['fullName'] ?? 'Không tên',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          "SĐT: ${user['phoneNumber']}",
+                          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.phone, color: Colors.green),
+                    onPressed: () {
+                       ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("Đang gọi cho ${user['phoneNumber']}..."))
+                        );
+                    },
+                  )
+                ],
+              ),
+              if (user['guardianPhone'] != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0, left: 60),
+                  child: Row(
                     children: [
-                      Text(
-                        user['fullName'] ?? 'Không tên',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        "SĐT: ${user['phoneNumber']}",
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                      ),
+                      Icon(Icons.family_restroom, size: 16, color: Colors.orange),
+                      SizedBox(width: 8),
+                      Text("Người giám hộ: ${user['guardianPhone']}", style: TextStyle(fontSize: 13, color: Colors.orange[800], fontWeight: FontWeight.w500)),
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: Icon(Icons.phone, color: Colors.green),
-                  onPressed: () {
-                     ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Đang gọi cho ${user['phoneNumber']}..."))
-                      );
-                  },
-                )
-              ],
-            ),
-            if (user['guardianPhone'] != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0, left: 60),
+              Divider(height: 24),
+              Text("Thuốc chưa uống:", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.red)),
+              SizedBox(height: 8),
+              ...medications.map((m) => Padding(
+                padding: const EdgeInsets.only(bottom: 6.0),
                 child: Row(
                   children: [
-                    Icon(Icons.family_restroom, size: 16, color: Colors.orange),
+                    Icon(Icons.warning_amber_rounded, size: 16, color: Colors.red.shade300),
                     SizedBox(width: 8),
-                    Text("Người giám hộ: ${user['guardianPhone']}", style: TextStyle(fontSize: 13, color: Colors.orange[800], fontWeight: FontWeight.w500)),
+                    Expanded(
+                      child: Text(
+                        "${m['name']} (${m['dosage']}) - ${m['time']}",
+                        style: TextStyle(fontSize: 15, color: Colors.black87),
+                      ),
+                    ),
                   ],
                 ),
-              ),
-            Divider(height: 24),
-            Text("Thuốc chưa uống:", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.red)),
-            SizedBox(height: 8),
-            ...medications.map((m) => Padding(
-              padding: const EdgeInsets.only(bottom: 6.0),
-              child: Row(
-                children: [
-                  Icon(Icons.warning_amber_rounded, size: 16, color: Colors.red.shade300),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      "${m['name']} (${m['dosage']}) - ${m['time']}",
-                      style: TextStyle(fontSize: 15, color: Colors.black87),
-                    ),
-                  ),
-                ],
-              ),
-            )).toList(),
-          ],
+              )).toList(),
+            ],
+          ),
         ),
       ),
     );

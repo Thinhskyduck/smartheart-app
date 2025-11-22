@@ -8,16 +8,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ApiConfig {
   static String get BASE_URL {
-    if (kIsWeb) {
-      return 'http://localhost:5000'; // Web uses localhost
-    } else {
-      // For USB debugging with ADB reverse, use localhost
-      // Run: adb reverse tcp:5000 tcp:5000
-      return 'http://localhost:5000'; 
-      
-      // For WiFi connection, use LAN IP instead:
-      // return 'http://192.168.15.104:5000';
-    }
+    return 'https://pentapulse-app.onrender.com';
   }
   static const String API_VERSION = '/api';
   

@@ -1,9 +1,10 @@
 // Tên file: lib/doctor/patient_details_screen.dart
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'doctor_dashboard_screen.dart';
 
 const Color primaryColor = Color(0xFF2260FF);
+
+enum AIStatus { danger, warning, stable }
 
 // Giả lập model Cảnh báo
 class Alert {
@@ -16,8 +17,8 @@ class Alert {
 }
 
 class PatientDetailsScreen extends StatelessWidget {
-  final Patient patient;
-  const PatientDetailsScreen({Key? key, required this.patient}) : super(key: key);
+  final dynamic patientData; // Changed to dynamic to accept JSON map
+  const PatientDetailsScreen({Key? key, required this.patientData}) : super(key: key);
 
   // Dữ liệu giả cho Lịch sử cảnh báo
   static final List<Alert> _alerts = [
@@ -29,6 +30,9 @@ class PatientDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = patientData['user'];
+    final name = user['fullName'] ?? 'Không tên';
+
     return DefaultTabController(
       length: 4,
       child: Scaffold(
@@ -36,7 +40,7 @@ class PatientDetailsScreen extends StatelessWidget {
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 1,
-          title: Text(patient.name, style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          title: Text(name, style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
           iconTheme: IconThemeData(color: Colors.black),
           actions: [
             IconButton(
@@ -65,7 +69,7 @@ class PatientDetailsScreen extends StatelessWidget {
           children: [
             _buildOverviewTab(context),
             _buildVitalsTab(),
-            _buildAlertsHistoryTab(context), // Truyền context vào đây
+            _buildAlertsHistoryTab(context),
             _buildProfileTab(),
           ],
         ),
@@ -93,7 +97,10 @@ class PatientDetailsScreen extends StatelessWidget {
 
   // 1. TAB TỔNG QUAN
   Widget _buildOverviewTab(BuildContext context) {
-    final statusColor = _getStatusColor(patient.status);
+    // Giả lập status, sau này sẽ lấy từ API
+    final status = AIStatus.warning; 
+    final statusColor = _getStatusColor(status);
+    
     return ListView(
       padding: EdgeInsets.all(16),
       children: [
@@ -106,9 +113,9 @@ class PatientDetailsScreen extends StatelessWidget {
               children: [
                 Text("Trạng thái hiện tại", style: TextStyle(fontSize: 18, color: Colors.white70)),
                 SizedBox(height: 8),
-                Text(_getStatusText(patient.status).toUpperCase(), style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+                Text(_getStatusText(status).toUpperCase(), style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
                 SizedBox(height: 8),
-                Text(patient.lastAlert, style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.9)), textAlign: TextAlign.center),
+                Text("Cảnh báo giả lập", style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.9)), textAlign: TextAlign.center),
               ],
             ),
           ),
@@ -199,7 +206,6 @@ class PatientDetailsScreen extends StatelessWidget {
 
   // 3. TAB LỊCH SỬ CẢNH BÁO
   Widget _buildAlertsHistoryTab(BuildContext context) {
-    // Nếu không có cảnh báo nào, hiển thị một thông báo
     if (_alerts.isEmpty) {
       return Center(
         child: Column(
@@ -213,7 +219,6 @@ class PatientDetailsScreen extends StatelessWidget {
       );
     }
     
-    // Nếu có, hiển thị ListView
     return ListView.builder(
       padding: EdgeInsets.symmetric(vertical: 16, horizontal: 8),
       itemCount: _alerts.length,
@@ -283,24 +288,26 @@ class PatientDetailsScreen extends StatelessWidget {
 
   // 4. TAB HỒ SƠ
   Widget _buildProfileTab() {
+    final user = patientData['user'];
+    
     return ListView(
       padding: EdgeInsets.all(16),
       children: [
         _buildProfileSectionCard("Thông tin Cá nhân", [
-          _buildProfileInfoTile("Mã Bệnh nhân", patient.id),
-          _buildProfileInfoTile("Ngày sinh", "01/01/1955 (70 tuổi)"),
-          _buildProfileInfoTile("Giới tính", "Nam"),
+          _buildProfileInfoTile("Mã Bệnh nhân", user['_id'] ?? 'N/A'),
+          _buildProfileInfoTile("Ngày sinh", user['yearOfBirth'] ?? 'N/A'),
+          _buildProfileInfoTile("Giới tính", "Nam"), // Placeholder
         ]),
         SizedBox(height: 16),
         _buildProfileSectionCard("Thông tin Y tế", [
-          _buildProfileInfoTile("Chẩn đoán", "Suy tim mạn tính (CHF) - NYHA II"),
-          _buildProfileInfoTile("Bác sĩ điều trị", "BS. Nguyễn Thị Yến"),
-          _buildProfileInfoTile("Thuốc đang sử dụng", "Aspirin, Metoprolol, Atorvastatin, Lisinoprol"),
+          _buildProfileInfoTile("Chẩn đoán", "Suy tim mạn tính (CHF) - NYHA II"), // Placeholder
+          _buildProfileInfoTile("Bác sĩ điều trị", "BS. Nguyễn Thị Yến"), // Placeholder
+          _buildProfileInfoTile("Thuốc đang sử dụng", "Aspirin, Metoprolol, Atorvastatin, Lisinoprol"), // Placeholder
         ]),
         SizedBox(height: 16),
         _buildProfileSectionCard("Liên hệ", [
-          _buildProfileInfoTile("Số điện thoại", "090 xxx 1234"),
-          _buildProfileInfoTile("Người nhà", "Trần Văn B (Con trai) - 098 xxx 5678"),
+          _buildProfileInfoTile("Số điện thoại", user['phoneNumber'] ?? 'N/A'),
+          _buildProfileInfoTile("Người giám hộ", user['guardianPhone'] ?? 'Không có'),
         ]),
       ],
     );
