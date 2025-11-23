@@ -3,6 +3,7 @@ import 'services/medication_service.dart';
 import 'medication/scan_result_screen.dart';
 import 'medication/edit_medication_screen.dart';
 import 'medication/add_medication_screen.dart';
+import 'package:image_picker/image_picker.dart';
 
 const Color primaryColor = Color(0xFF2260FF);
 
@@ -26,29 +27,48 @@ class _MedicationScreenState extends State<MedicationScreen> {
 
   void _update() => setState(() {});
 
-  void _requestCameraPermission() {
-    showDialog(
+  Future<void> _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+    
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text("Cấp quyền Camera?"),
-        content: Text("Ứng dụng cần truy cập Camera để quét đơn thuốc của bạn."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text("Từ chối", style: TextStyle(color: Colors.grey)),
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: <Widget>[
+              ListTile(
+                leading: Icon(Icons.photo_library),
+                title: Text('Thư viện ảnh'),
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+                  if (image != null) {
+                    _navigateToScanResult(image.path);
+                  }
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.photo_camera),
+                title: Text('Chụp ảnh'),
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  final XFile? image = await picker.pickImage(source: ImageSource.camera);
+                  if (image != null) {
+                    _navigateToScanResult(image.path);
+                  }
+                },
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => ScanResultScreen(imagePath: 'assets/images/app_logo.png')),
-              );
-            },
-            child: Text("Cho phép"),
-          ),
-        ],
-      ),
+        );
+      },
+    );
+  }
+
+  void _navigateToScanResult(String imagePath) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => ScanResultScreen(imagePath: imagePath)),
     );
   }
 
@@ -63,7 +83,7 @@ class _MedicationScreenState extends State<MedicationScreen> {
         actions: [
           IconButton(
             icon: Icon(Icons.document_scanner, color: primaryColor),
-            onPressed: _requestCameraPermission,
+            onPressed: _pickImage,
           ),
         ],
       ),

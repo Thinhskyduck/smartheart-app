@@ -2,6 +2,19 @@ const express = require('express');
 const router = express.Router();
 const medicationController = require('../controllers/medicationController');
 const auth = require('../middleware/authMiddleware');
+const multer = require('multer');
+const fs = require('fs');
+
+const uploadDir = 'uploads';
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir);
+}
+const upload = multer({ dest: uploadDir });
+
+// @route   POST api/medications/scan
+// @desc    Scan prescription image
+// @access  Private
+router.post('/scan', auth, upload.single('file'), medicationController.scanPrescription);
 
 // @route   GET api/medications
 // @desc    Get all medications

@@ -1,4 +1,36 @@
 const Medication = require('../models/Medication');
+const axios = require('axios');
+const FormData = require('form-data');
+const fs = require('fs');
+
+exports.scanPrescription = async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ msg: 'No file uploaded' });
+    }
+
+    try {
+        const formData = new FormData();
+        formData.append('file', fs.createReadStream(req.file.path));
+
+        const response = await axios.post('https://thinhskyduck-prescription-scanner.hf.space/scan', formData, {
+            headers: {
+                ...formData.getHeaders()
+            }
+        });
+
+        // Clean up uploaded file
+        fs.unlinkSync(req.file.path);
+
+        res.json(response.data);
+    } catch (err) {
+        console.error('Scan error:', err.message);
+        // Clean up file if error
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+        res.status(500).json({ msg: 'Error scanning prescription', error: err.message });
+    }
+};
 
 exports.getMedications = async (req, res) => {
     try {

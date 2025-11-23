@@ -9,6 +9,7 @@ class ApiService {
   ApiService._internal();
 
   String? _token;
+  String? get token => _token;
 
   // Save token to local storage
   Future<void> saveToken(String token) async {
