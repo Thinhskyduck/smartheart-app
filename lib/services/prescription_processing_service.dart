@@ -15,11 +15,12 @@ class PrescriptionProcessingService extends ChangeNotifier {
   }
 
   ScanStatus _status = ScanStatus.idle;
-  List<PrescriptionItem> _results = [];
+  PrescriptionScanResult? _scanResult;
   String? _errorMessage;
 
   ScanStatus get status => _status;
-  List<PrescriptionItem> get results => _results;
+  List<PrescriptionItem> get results => _scanResult?.medications ?? [];
+  PrescriptionGeneralInfo? get generalInfo => _scanResult?.generalInfo;
   String? get errorMessage => _errorMessage;
 
   Future<void> _saveState() async {
@@ -31,18 +32,26 @@ class PrescriptionProcessingService extends ChangeNotifier {
       await prefs.remove('scan_error');
     }
     
-    if (_results.isNotEmpty) {
-      final List<Map<String, dynamic>> jsonList = _results.map((item) => {
-        'Tên thuốc': item.name,
-        'Liều lượng chính': item.dosage,
-        'Cách dùng cơ bản': item.usage,
-        'Lịch tái khám': item.followUpSchedule,
-        'Nơi tái khám': item.followUpLocation,
-        'Các ghi chú quan trọng, nhắc nhở': item.notes,
+    if (_scanResult != null) {
+      // Lưu medications
+      final List<Map<String, dynamic>> medicationsJson = _scanResult!.medications.map((item) => {
+        'ten_thuoc': item.name,
+        'lieu_luong': item.dosage,
+        'cach_dung': item.usage,
+        'ghi_chu_rieng': item.notes,
       }).toList();
-      await prefs.setString('scan_results', jsonEncode(jsonList));
+      
+      // Lưu general info
+      final Map<String, dynamic> generalInfoJson = {
+        'lich_tai_kham': _scanResult!.generalInfo.followUpSchedule,
+        'loi_dan_chung': _scanResult!.generalInfo.generalAdvice,
+      };
+      
+      await prefs.setString('scan_medications', jsonEncode(medicationsJson));
+      await prefs.setString('scan_general_info', jsonEncode(generalInfoJson));
     } else {
-      await prefs.remove('scan_results');
+      await prefs.remove('scan_medications');
+      await prefs.remove('scan_general_info');
     }
   }
 
@@ -61,17 +70,24 @@ class PrescriptionProcessingService extends ChangeNotifier {
       _errorMessage = prefs.getString('scan_error');
     }
     
-    final resultsJson = prefs.getString('scan_results');
-    if (resultsJson != null) {
+    final medicationsJson = prefs.getString('scan_medications');
+    final generalInfoJson = prefs.getString('scan_general_info');
+    
+    if (medicationsJson != null && generalInfoJson != null) {
       try {
-        final List<dynamic> decoded = jsonDecode(resultsJson);
-        _results = decoded.map((e) => PrescriptionItem.fromJson(e)).toList();
+        final List<dynamic> medsList = jsonDecode(medicationsJson);
+        final Map<String, dynamic> genInfo = jsonDecode(generalInfoJson);
+        
+        _scanResult = PrescriptionScanResult(
+          medications: medsList.map((e) => PrescriptionItem.fromJson(e)).toList(),
+          generalInfo: PrescriptionGeneralInfo.fromJson(genInfo),
+        );
       } catch (e) {
         print('Error loading saved results: $e');
-        _results = [];
+        _scanResult = null;
       }
     } else {
-      _results = [];
+      _scanResult = null;
     }
     notifyListeners();
   }
@@ -79,13 +95,13 @@ class PrescriptionProcessingService extends ChangeNotifier {
   Future<void> startScan(File imageFile) async {
     _status = ScanStatus.processing;
     _errorMessage = null;
-    _results = [];
+    _scanResult = null;
     notifyListeners();
     _saveState();
 
     try {
-      // The actual API call
-      _results = await prescriptionService.scanPrescription(imageFile);
+      // The actual API call - now returns PrescriptionScanResult
+      _scanResult = await prescriptionService.scanPrescription(imageFile);
       _status = ScanStatus.completed;
     } catch (e) {
       _status = ScanStatus.error;
@@ -97,7 +113,7 @@ class PrescriptionProcessingService extends ChangeNotifier {
 
   void reset() {
     _status = ScanStatus.idle;
-    _results = [];
+    _scanResult = null;
     _errorMessage = null;
     notifyListeners();
     _saveState();

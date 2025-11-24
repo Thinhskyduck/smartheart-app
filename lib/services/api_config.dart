@@ -10,7 +10,7 @@ class ApiConfig {
   static String get BASE_URL {
     if (kDebugMode) {
       // Use localhost with adb reverse tcp:5000 tcp:5000
-      return 'http://127.0.0.1:5000';
+      // return 'http://127.0.0.1:5000';
     }
     return 'https://pentapulse-app.onrender.com';
   }

@@ -10,14 +10,11 @@ exports.scanPrescription = async (req, res) => {
     console.log('Received scan request');
     
     if (!req.file) {
-        console.log('No file uploaded');
         return res.status(400).json({ msg: 'No file uploaded' });
     }
 
     try {
-        console.log('File received:', req.file.path);
-        
-        // --- Xử lý MimeType ---
+        // 1. Xử lý MimeType
         let mimeType = req.file.mimetype;
         if (mimeType === 'application/octet-stream') {
             const ext = path.extname(req.file.originalname).toLowerCase();
@@ -34,97 +31,92 @@ exports.scanPrescription = async (req, res) => {
             },
         };
 
+        // 2. Cấu hình Model & Prompt
+        // SỬ DỤNG ĐÚNG MODEL GEMINI 2.5 FLASH
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-2.5-flash", // Đã cập nhật theo yêu cầu
+            generationConfig: {
+                responseMimeType: "application/json" // Ép buộc trả về JSON
+            }
+        });
+
         const prompt = `
-Bạn là chuyên gia y tế. Hãy:
-1. OCR toàn bộ nội dung trong ảnh toa thuốc.
-2. Chuẩn hóa lại thông tin.
-3. Summarize thành format sau:
+        Bạn là chuyên gia y tế. Hãy phân tích hình ảnh toa thuốc và trả về JSON theo đúng cấu trúc sau.
+        
+        Yêu cầu tách biệt rõ ràng:
+        1. "ghi_chu_rieng": Chỉ những lưu ý dành riêng cho thuốc đó (VD: lắc kỹ, uống lúc đói).
+        2. "loi_dan_chung": Những lời dặn dò tổng quát cho bệnh nhân (VD: Kiêng rượu bia, ăn nhạt, chế độ tập luyện).
 
-Ví dụ:
-        - Tên thuốc 1 (có thể là vật tư y tế,...)
-          •  Liều lượng: ...mg, ... viên.
-          •  Cách dùng: Uống (1/0.5/...) viên/lần, ngày (1-2...) lần vào buổi (sáng/trưa/chiều/tối) (sau/trước) ăn.
-        
-        - Tên thuốc 2 (có thể là vật tư y tế,...)
-          •  Liều lượng: ...mg, ... viên.
-          •  Cách dùng: Uống (1/0.5/...) viên/lần, ngày (1-2...) lần vào buổi (sáng/trưa/chiều/tối) (sau/trước) ăn.
-        
-        - Lịch tái khám: (nếu không có thì ghi 'Không có thông tin.').
-        
-        - Nơi tái khám: rrwrewqrq (nếu không có thì hãy ghi 'Cơ sở y tế đã khám bệnh.').
-        
-        - Ghi chú & lời dặn quan trọng:
-          • Ghi chú 1.
-          • Ghi chú 2.
-          ...
-          
-Trả lời bằng tiếng Việt, ngắn gọn, chính xác và chỉ trả về đúng định dạng của ví dụ, không được trả về text khác.
-`;
+        Cấu trúc JSON bắt buộc:
+        {
+            "don_thuoc": [
+                {
+                    "ten_thuoc": "Tên thuốc + hàm lượng",
+                    "lieu_luong": "Số lượng/Liều lượng",
+                    "cach_dung": "Cách dùng cụ thể",
+                    "ghi_chu_rieng": "Ghi chú riêng của thuốc này (để trống nếu không có)"
+                }
+            ],
+            "thong_tin_chung": {
+                "ngay_tai_kham": "Ngày hoặc khoảng thời gian (hoặc null)",
+                "noi_tai_kham": "Tên cơ sở y tế (hoặc null)",
+                "loi_dan_chung": "Các lời dặn dò chung, chế độ ăn uống, sinh hoạt..."
+            }
+        }
+        `;
 
-        console.log('Sending to Gemini API...');
-        
-        // Vẫn dùng model 2.5 flash như bạn muốn
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
+        console.log('Sending to Gemini 2.5 Flash...');
         const result = await model.generateContent([prompt, image]);
         const response = await result.response;
         const text = response.text();
 
         console.log('Gemini Response:', text);
 
-        // --- Parse Data ---
-        const medications = [];
-        let followUpSchedule = "Không có thông tin.";
-        let followUpLocation = "Cơ sở y tế đã khám bệnh.";
-        let notes = "";
-
-        const lines = text.split('\n');
-        let currentMed = null;
-
-        for (let line of lines) {
-            line = line.trim();
-            if (!line) continue;
-
-            if (line.startsWith('- Lịch tái khám:')) {
-                followUpSchedule = line.replace('- Lịch tái khám:', '').trim();
-                currentMed = null;
-            } else if (line.startsWith('- Nơi tái khám:')) {
-                followUpLocation = line.replace('- Nơi tái khám:', '').trim();
-                currentMed = null;
-            } else if (line.startsWith('- Ghi chú & lời dặn quan trọng:')) {
-                currentMed = null;
-            } else if (line.startsWith('- ')) {
-                if (currentMed) medications.push(currentMed);
-                currentMed = {
-                    'Tên thuốc': line.replace('- ', '').trim(),
-                    'Liều lượng chính': '',
-                    'Cách dùng cơ bản': ''
-                };
-            } else if (line.startsWith('• Liều lượng:')) {
-                if (currentMed) currentMed['Liều lượng chính'] = line.replace('• Liều lượng:', '').trim();
-            } else if (line.startsWith('• Cách dùng:')) {
-                if (currentMed) currentMed['Cách dùng cơ bản'] = line.replace('• Cách dùng:', '').trim();
-            } else if (line.startsWith('• ')) {
-                if (!currentMed) notes += line.replace('• ', '').trim() + '\n';
-            }
+        let parsedData;
+        try {
+            parsedData = JSON.parse(text);
+        } catch (e) {
+            // Fallback phòng khi JSON bị lỗi nhẹ (ít khi xảy ra với mode json)
+            const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            parsedData = JSON.parse(cleanText);
         }
-        if (currentMed) medications.push(currentMed);
 
-        const finalResponse = medications.map(med => ({
-            ...med,
-            'Lịch tái khám': followUpSchedule,
-            'Nơi tái khám': followUpLocation,
-            'Các ghi chú quan trọng, nhắc nhở': notes.trim()
-        }));
+        // 3. Xử lý dữ liệu trả về cho Frontend
+        const ttChung = parsedData.thong_tin_chung || {};
+        
+        // Logic hiển thị lịch tái khám (như cũ)
+        let taiKhamDisplay = "Không có thông tin tái khám";
+        if (ttChung.ngay_tai_kham && ttChung.noi_tai_kham) {
+            taiKhamDisplay = `${ttChung.ngay_tai_kham} tại ${ttChung.noi_tai_kham}`;
+        } else if (ttChung.ngay_tai_kham) {
+            taiKhamDisplay = ttChung.ngay_tai_kham;
+        } else if (ttChung.noi_tai_kham) {
+            taiKhamDisplay = `Tại ${ttChung.noi_tai_kham}`;
+        }
+
+        // Cấu trúc Final Response gửi về Frontend
+        // Frontend sẽ nhận được 2 cục: 'medications' (list thuốc) và 'generalInfo' (thông tin chung)
+        const finalResponse = {
+            medications: (parsedData.don_thuoc || []).map(med => ({
+                ten_thuoc: med.ten_thuoc || "Đang cập nhật",
+                lieu_luong: med.lieu_luong || "",
+                cach_dung: med.cach_dung || "",
+                ghi_chu_rieng: med.ghi_chu_rieng || "" // Frontend check field này, nếu có text thì hiện icon/text note
+            })),
+            generalInfo: {
+                lich_tai_kham: taiKhamDisplay,
+                loi_dan_chung: ttChung.loi_dan_chung || "Không có lời dặn đặc biệt." // Frontend hiện cái này ở khu vực riêng
+            }
+        };
 
         if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-
+        
         res.json(finalResponse);
 
     } catch (err) {
         console.error('Scan error:', err);
         if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-        res.status(500).json({ msg: 'Error scanning prescription', error: err.message });
+        res.status(500).json({ msg: 'Lỗi khi quét toa thuốc', error: err.message });
     }
 };
 

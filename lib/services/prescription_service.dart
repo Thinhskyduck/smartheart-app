@@ -8,34 +8,59 @@ class PrescriptionItem {
   final String name;
   final String dosage;
   final String usage;
-  final String followUpSchedule;
-  final String followUpLocation;
-  final String notes;
+  final String notes; // ghi_chu_rieng của từng thuốc
 
   PrescriptionItem({
     required this.name,
     required this.dosage,
     required this.usage,
-    required this.followUpSchedule,
-    required this.followUpLocation,
     required this.notes,
   });
 
+  // Parse từ API mới (medications array)
   factory PrescriptionItem.fromJson(Map<String, dynamic> json) {
     return PrescriptionItem(
-      name: json['Tên thuốc'] ?? 'Không xác định',
-      dosage: json['Liều lượng chính'] ?? '',
-      usage: json['Cách dùng cơ bản'] ?? '',
-      followUpSchedule: json['Lịch tái khám'] ?? '',
-      followUpLocation: json['Nơi tái khám'] ?? '',
-      notes: json['Các ghi chú quan trọng, nhắc nhở'] ?? '',
+      name: json['ten_thuoc'] ?? 'Không xác định',
+      dosage: json['lieu_luong'] ?? '',
+      usage: json['cach_dung'] ?? '',
+      notes: json['ghi_chu_rieng'] ?? '',
     );
   }
 }
 
+// Model cho thông tin chung của đơn thuốc
+class PrescriptionGeneralInfo {
+  final String followUpSchedule; // lich_tai_kham
+  final String generalAdvice;    // loi_dan_chung
+
+  PrescriptionGeneralInfo({
+    required this.followUpSchedule,
+    required this.generalAdvice,
+  });
+
+  factory PrescriptionGeneralInfo.fromJson(Map<String, dynamic> json) {
+    return PrescriptionGeneralInfo(
+      followUpSchedule: json['lich_tai_kham'] ?? 'Không có thông tin tái khám',
+      generalAdvice: json['loi_dan_chung'] ?? '',
+    );
+  }
+}
+
+// Kết quả quét toa thuốc hoàn chỉnh
+class PrescriptionScanResult {
+  final List<PrescriptionItem> medications;
+  final PrescriptionGeneralInfo generalInfo;
+
+  PrescriptionScanResult({
+    required this.medications,
+    required this.generalInfo,
+  });
+}
+
 class PrescriptionService {
   
-  Future<List<PrescriptionItem>> scanPrescription(File imageFile) async {
+  // Trả về kết quả đầy đủ bao gồm danh sách thuốc và thông tin chung
+  Future<PrescriptionScanResult> scanPrescription(File imageFile) async {
     final url = '${ApiConfig.BASE_URL}/api/medications/scan';
     final token = apiService.token;
 
@@ -52,15 +77,24 @@ class PrescriptionService {
       if (response.statusCode == 200) {
         final decoded = jsonDecode(utf8.decode(response.bodyBytes));
         
-        if (decoded is List) {
-          return decoded.map((e) => PrescriptionItem.fromJson(e)).toList();
-        } else if (decoded is Map<String, dynamic>) {
-          if (decoded.containsKey('Tên thuốc')) {
-             return [PrescriptionItem.fromJson(decoded)];
-          }
-          return [];
+        // Parse theo cấu trúc mới: { medications: [...], generalInfo: {...} }
+        if (decoded is Map<String, dynamic>) {
+          final medicationsList = (decoded['medications'] as List?)?.map((e) => PrescriptionItem.fromJson(e)).toList() ?? [];
+          final generalInfo = PrescriptionGeneralInfo.fromJson(decoded['generalInfo'] ?? {});
+          
+          return PrescriptionScanResult(
+            medications: medicationsList,
+            generalInfo: generalInfo,
+          );
         } else {
-          return [];
+          // Fallback: empty result
+          return PrescriptionScanResult(
+            medications: [],
+            generalInfo: PrescriptionGeneralInfo(
+              followUpSchedule: 'Không có thông tin tái khám',
+              generalAdvice: '',
+            ),
+          );
         }
       } else {
         throw Exception('Failed to scan prescription: ${response.statusCode} ${response.body}');
