@@ -1,13 +1,14 @@
-const fs = require('fs'); // Đã bổ sung thư viện fs
+const fs = require('fs');
+const path = require('path');
 const Medication = require('../models/Medication');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// Initialize Gemini API
-// Lưu ý: Nên dùng biến môi trường (process.env.GEMINI_API_KEY) để bảo mật thay vì hardcode
-const genAI = new GoogleGenerativeAI("AIzaSyA7HOYEA8bUHEet3oNSm86jT1-THLRArQY");
+// SỬA Ở ĐÂY: Lấy key từ file .env
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 exports.scanPrescription = async (req, res) => {
     console.log('Received scan request');
+    
     if (!req.file) {
         console.log('No file uploaded');
         return res.status(400).json({ msg: 'No file uploaded' });
@@ -15,13 +16,21 @@ exports.scanPrescription = async (req, res) => {
 
     try {
         console.log('File received:', req.file.path);
+        
+        // --- Xử lý MimeType ---
+        let mimeType = req.file.mimetype;
+        if (mimeType === 'application/octet-stream') {
+            const ext = path.extname(req.file.originalname).toLowerCase();
+            if (ext === '.png') mimeType = 'image/png';
+            else if (ext === '.webp') mimeType = 'image/webp';
+            else mimeType = 'image/jpeg';
+        }
 
-        // Read file as base64
         const fileData = fs.readFileSync(req.file.path);
         const image = {
             inlineData: {
                 data: fileData.toString("base64"),
-                mimeType: req.file.mimetype,
+                mimeType: mimeType,
             },
         };
 
@@ -53,7 +62,8 @@ Trả lời bằng tiếng Việt, ngắn gọn, chính xác và chỉ trả v�
 `;
 
         console.log('Sending to Gemini API...');
-        // Sử dụng model gemini-2.5-flash như bạn yêu cầu
+        
+        // Vẫn dùng model 2.5 flash như bạn muốn
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         const result = await model.generateContent([prompt, image]);
@@ -62,7 +72,7 @@ Trả lời bằng tiếng Việt, ngắn gọn, chính xác và chỉ trả v�
 
         console.log('Gemini Response:', text);
 
-        // Parse the text response
+        // --- Parse Data ---
         const medications = [];
         let followUpSchedule = "Không có thông tin.";
         let followUpLocation = "Cơ sở y tế đã khám bệnh.";
@@ -82,37 +92,24 @@ Trả lời bằng tiếng Việt, ngắn gọn, chính xác và chỉ trả v�
                 followUpLocation = line.replace('- Nơi tái khám:', '').trim();
                 currentMed = null;
             } else if (line.startsWith('- Ghi chú & lời dặn quan trọng:')) {
-                currentMed = null; // Start collecting notes
+                currentMed = null;
             } else if (line.startsWith('- ')) {
-                // New medication
-                if (currentMed) {
-                    medications.push(currentMed);
-                }
+                if (currentMed) medications.push(currentMed);
                 currentMed = {
                     'Tên thuốc': line.replace('- ', '').trim(),
                     'Liều lượng chính': '',
                     'Cách dùng cơ bản': ''
                 };
             } else if (line.startsWith('• Liều lượng:')) {
-                if (currentMed) {
-                    currentMed['Liều lượng chính'] = line.replace('• Liều lượng:', '').trim();
-                }
+                if (currentMed) currentMed['Liều lượng chính'] = line.replace('• Liều lượng:', '').trim();
             } else if (line.startsWith('• Cách dùng:')) {
-                if (currentMed) {
-                    currentMed['Cách dùng cơ bản'] = line.replace('• Cách dùng:', '').trim();
-                }
+                if (currentMed) currentMed['Cách dùng cơ bản'] = line.replace('• Cách dùng:', '').trim();
             } else if (line.startsWith('• ')) {
-                // Could be a note bullet point
-                if (!currentMed) {
-                    notes += line.replace('• ', '').trim() + '\n';
-                }
+                if (!currentMed) notes += line.replace('• ', '').trim() + '\n';
             }
         }
-        if (currentMed) {
-            medications.push(currentMed);
-        }
+        if (currentMed) medications.push(currentMed);
 
-        // Add global info to each med
         const finalResponse = medications.map(med => ({
             ...med,
             'Lịch tái khám': followUpSchedule,
@@ -120,20 +117,13 @@ Trả lời bằng tiếng Việt, ngắn gọn, chính xác và chỉ trả v�
             'Các ghi chú quan trọng, nhắc nhở': notes.trim()
         }));
 
-        console.log('Parsed Data:', JSON.stringify(finalResponse, null, 2));
-
-        // Clean up uploaded file
-        if (fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-        }
+        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
 
         res.json(finalResponse);
+
     } catch (err) {
         console.error('Scan error:', err);
-        // Clean up file if error
-        if (req.file && fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-        }
+        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         res.status(500).json({ msg: 'Error scanning prescription', error: err.message });
     }
 };
@@ -150,17 +140,10 @@ exports.getMedications = async (req, res) => {
 
 exports.addMedication = async (req, res) => {
     const { name, dosage, time, quantity, session } = req.body;
-
     try {
         const newMedication = new Medication({
-            user: req.user.id,
-            name,
-            dosage,
-            time,
-            quantity,
-            session
+            user: req.user.id, name, dosage, time, quantity, session
         });
-
         const medication = await newMedication.save();
         res.json(medication);
     } catch (err) {
@@ -171,8 +154,6 @@ exports.addMedication = async (req, res) => {
 
 exports.updateMedication = async (req, res) => {
     const { name, dosage, time, quantity, session, isTaken } = req.body;
-
-    // Build object to update
     const medicationFields = {};
     if (name) medicationFields.name = name;
     if (dosage) medicationFields.dosage = dosage;
@@ -183,20 +164,14 @@ exports.updateMedication = async (req, res) => {
 
     try {
         let medication = await Medication.findById(req.params.id);
-
         if (!medication) return res.status(404).json({ msg: 'Medication not found' });
-
-        // Make sure user owns medication
-        if (medication.user.toString() !== req.user.id) {
-            return res.status(401).json({ msg: 'Not authorized' });
-        }
+        if (medication.user.toString() !== req.user.id) return res.status(401).json({ msg: 'Not authorized' });
 
         medication = await Medication.findByIdAndUpdate(
             req.params.id,
             { $set: medicationFields },
             { new: true }
         );
-
         res.json(medication);
     } catch (err) {
         console.error(err.message);
@@ -207,17 +182,10 @@ exports.updateMedication = async (req, res) => {
 exports.deleteMedication = async (req, res) => {
     try {
         let medication = await Medication.findById(req.params.id);
-
         if (!medication) return res.status(404).json({ msg: 'Medication not found' });
+        if (medication.user.toString() !== req.user.id) return res.status(401).json({ msg: 'Not authorized' });
 
-        // Make sure user owns medication
-        if (medication.user.toString() !== req.user.id) {
-            return res.status(401).json({ msg: 'Not authorized' });
-        }
-
-        // SỬA LỖI: Dùng findByIdAndDelete thay cho findByIdAndRemove
         await Medication.findByIdAndDelete(req.params.id);
-
         res.json({ msg: 'Medication removed' });
     } catch (err) {
         console.error(err.message);
