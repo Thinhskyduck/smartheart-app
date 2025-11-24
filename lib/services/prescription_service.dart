@@ -46,7 +46,7 @@ class PrescriptionService {
         request.headers['x-auth-token'] = token;
       }
 
-      var streamedResponse = await request.send();
+      var streamedResponse = await request.send().timeout(Duration(minutes: 5));
       var response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {

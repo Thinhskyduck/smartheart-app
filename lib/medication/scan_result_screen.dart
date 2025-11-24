@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
 import '../services/prescription_service.dart';
 
 const Color primaryColor = Color(0xFF2260FF);
@@ -19,8 +18,8 @@ class ScannedMed {
 }
 
 class ScanResultScreen extends StatefulWidget {
-  final String imagePath;
-  ScanResultScreen({required this.imagePath});
+  final List<PrescriptionItem> results;
+  ScanResultScreen({required this.results});
 
   @override
   _ScanResultScreenState createState() => _ScanResultScreenState();
@@ -28,37 +27,26 @@ class ScanResultScreen extends StatefulWidget {
 
 class _ScanResultScreenState extends State<ScanResultScreen> {
   List<ScannedMed> scannedMeds = [];
-  bool isLoading = true;
-  String? errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _scanImage();
+    _loadData();
   }
 
-  Future<void> _scanImage() async {
-    try {
-      final results = await prescriptionService.scanPrescription(File(widget.imagePath));
-      setState(() {
-        scannedMeds = results.map((item) => ScannedMed(
-          item.name,
-          item.usage.isNotEmpty ? item.usage : "Sau ăn", // Default logic as per user request
-          "8:00", // Default time, user can edit
-          item.dosage,
-          "Đang cập nhật", // Quantity not provided
-          followUp: item.followUpSchedule,
-          location: item.followUpLocation,
-          notes: item.notes,
-        )).toList();
-        isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        errorMessage = "Lỗi khi quét đơn thuốc: $e";
-        isLoading = false;
-      });
-    }
+  void _loadData() {
+    setState(() {
+      scannedMeds = widget.results.map((item) => ScannedMed(
+        item.name,
+        item.usage.isNotEmpty ? item.usage : "Sau ăn", // Default logic as per user request
+        "8:00", // Default time, user can edit
+        item.dosage,
+        "Đang cập nhật", // Quantity not provided
+        followUp: item.followUpSchedule,
+        location: item.followUpLocation,
+        notes: item.notes,
+      )).toList();
+    });
   }
 
   @override
@@ -72,116 +60,69 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         title: Text("Kết quả quét đơn thuốc", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),
-      body: isLoading 
-          ? Center(child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+      body: Column(
+        children: [
+          SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Text(
+              "${scannedMeds.length} loại thuốc được tìm thấy! Vui lòng kiểm tra lại thông tin.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[600], fontSize: 16),
+            ),
+          ),
+          SizedBox(height: 20),
+
+          // Danh sách thuốc
+          Expanded(
+            child: ListView.builder(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              itemCount: scannedMeds.length,
+              itemBuilder: (context, index) {
+                return _buildMedCard(scannedMeds[index], index);
+              },
+            ),
+          ),
+
+          // Bottom Actions
+          Container(
+            padding: EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, -5))],
+            ),
+            child: Column(
               children: [
-                CircularProgressIndicator(color: primaryColor),
-                SizedBox(height: 16),
-                Text("Đang phân tích đơn thuốc...", style: TextStyle(color: Colors.grey[600])),
-              ],
-            ))
-          : errorMessage != null
-              ? Center(child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error_outline, size: 48, color: Colors.red),
-                      SizedBox(height: 16),
-                      Text(errorMessage!, textAlign: TextAlign.center, style: TextStyle(color: Colors.red)),
-                      SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: () {
-                          setState(() {
-                            isLoading = true;
-                            errorMessage = null;
-                          });
-                          _scanImage();
-                        },
-                        child: Text("Thử lại"),
-                      )
-                    ],
+                OutlinedButton(
+                  onPressed: () { setState(() => scannedMeds.clear()); },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: BorderSide(color: Colors.red),
+                    minimumSize: Size(double.infinity, 55),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                   ),
-                ))
-              : Column(
-                  children: [
-                    // Phần xem trước ảnh
-                    SizedBox(height: 20),
-                    Center(
-                      child: Container(
-                        width: 120, height: 120,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.grey[300]!),
-                          image: DecorationImage(
-                            image: FileImage(File(widget.imagePath)),
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 20),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      child: Text(
-                        "${scannedMeds.length} loại thuốc được tìm thấy! Vui lòng kiểm tra lại thông tin.",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey[600], fontSize: 16),
-                      ),
-                    ),
-                    SizedBox(height: 20),
-
-                    // Danh sách thuốc
-                    Expanded(
-                      child: ListView.builder(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: scannedMeds.length,
-                        itemBuilder: (context, index) {
-                          return _buildMedCard(scannedMeds[index], index);
-                        },
-                      ),
-                    ),
-
-                    // Bottom Actions
-                    Container(
-                      padding: EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, -5))],
-                      ),
-                      child: Column(
-                        children: [
-                          OutlinedButton(
-                            onPressed: () { setState(() => scannedMeds.clear()); },
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.red,
-                              side: BorderSide(color: Colors.red),
-                              minimumSize: Size(double.infinity, 55),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                            ),
-                            child: Text("Xoá tất cả", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                          ),
-                          SizedBox(height: 12),
-                          ElevatedButton(
-                            onPressed: () {
-                              // TODO: Lưu vào MedicationService
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Đã thêm thuốc vào lịch!"), backgroundColor: Colors.green));
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Color(0xFF1A1A2E),
-                              foregroundColor: Colors.white,
-                              minimumSize: Size(double.infinity, 55),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                            ),
-                            child: Text("Thêm tất cả vào hộp thuốc", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                          ),
-                        ],
-                      ),
-                    )
-                  ],
+                  child: Text("Xoá tất cả", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
+                SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: () {
+                    // TODO: Lưu vào MedicationService
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Đã thêm thuốc vào lịch!"), backgroundColor: Colors.green));
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF1A1A2E),
+                    foregroundColor: Colors.white,
+                    minimumSize: Size(double.infinity, 55),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  ),
+                  child: Text("Thêm tất cả vào hộp thuốc", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          )
+        ],
+      ),
     );
   }
 

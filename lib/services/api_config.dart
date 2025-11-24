@@ -4,10 +4,14 @@
 /// - Physical Android Device: http://<YOUR_COMPUTER_IP>:5000
 /// - iOS Simulator: http://localhost:5000
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 
 class ApiConfig {
   static String get BASE_URL {
+    if (kDebugMode) {
+      // Use localhost with adb reverse tcp:5000 tcp:5000
+      return 'http://127.0.0.1:5000';
+    }
     return 'https://pentapulse-app.onrender.com';
   }
   static const String API_VERSION = '/api';

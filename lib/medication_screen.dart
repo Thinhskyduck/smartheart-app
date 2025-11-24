@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'services/medication_service.dart';
+import 'services/prescription_processing_service.dart';
 import 'medication/scan_result_screen.dart';
 import 'medication/edit_medication_screen.dart';
 import 'medication/add_medication_screen.dart';
 import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 const Color primaryColor = Color(0xFF2260FF);
 
@@ -17,11 +19,13 @@ class _MedicationScreenState extends State<MedicationScreen> {
   void initState() {
     super.initState();
     medicationService.addListener(_update);
+    prescriptionProcessingService.addListener(_update);
   }
 
   @override
   void dispose() {
     medicationService.removeListener(_update);
+    prescriptionProcessingService.removeListener(_update);
     super.dispose();
   }
 
@@ -43,7 +47,7 @@ class _MedicationScreenState extends State<MedicationScreen> {
                   Navigator.of(context).pop();
                   final XFile? image = await picker.pickImage(source: ImageSource.gallery);
                   if (image != null) {
-                    _navigateToScanResult(image.path);
+                    _startScanning(File(image.path));
                   }
                 },
               ),
@@ -54,7 +58,7 @@ class _MedicationScreenState extends State<MedicationScreen> {
                   Navigator.of(context).pop();
                   final XFile? image = await picker.pickImage(source: ImageSource.camera);
                   if (image != null) {
-                    _navigateToScanResult(image.path);
+                    _startScanning(File(image.path));
                   }
                 },
               ),
@@ -65,10 +69,10 @@ class _MedicationScreenState extends State<MedicationScreen> {
     );
   }
 
-  void _navigateToScanResult(String imagePath) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => ScanResultScreen(imagePath: imagePath)),
+  void _startScanning(File imageFile) {
+    prescriptionProcessingService.startScan(imageFile);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Đang phân tích đơn thuốc... Bạn có thể tiếp tục sử dụng ứng dụng.")),
     );
   }
 
@@ -87,11 +91,18 @@ class _MedicationScreenState extends State<MedicationScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: EdgeInsets.all(16),
+      body: Column(
         children: [
-          _buildSection("Buổi Sáng", medicationService.morningMeds),
-          _buildSection("Buổi Tối", medicationService.eveningMeds),
+          _buildScanStatusBanner(),
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.all(16),
+              children: [
+                _buildSection("Buổi Sáng", medicationService.morningMeds),
+                _buildSection("Buổi Tối", medicationService.eveningMeds),
+              ],
+            ),
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -106,6 +117,68 @@ class _MedicationScreenState extends State<MedicationScreen> {
         backgroundColor: primaryColor,
       ),
     );
+  }
+
+  Widget _buildScanStatusBanner() {
+    final status = prescriptionProcessingService.status;
+    if (status == ScanStatus.idle) return SizedBox.shrink();
+
+    if (status == ScanStatus.processing) {
+      return Container(
+        color: Colors.blue[50],
+        padding: EdgeInsets.all(12),
+        child: Row(
+          children: [
+            SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+            SizedBox(width: 12),
+            Expanded(child: Text("Đang phân tích đơn thuốc...", style: TextStyle(color: Colors.blue[800]))),
+          ],
+        ),
+      );
+    }
+
+    if (status == ScanStatus.completed) {
+      return Container(
+        color: Colors.green[50],
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green),
+            SizedBox(width: 12),
+            Expanded(child: Text("Phân tích hoàn tất!", style: TextStyle(color: Colors.green[800], fontWeight: FontWeight.bold))),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ScanResultScreen(results: prescriptionProcessingService.results)),
+                ).then((_) => prescriptionProcessingService.reset());
+              },
+              child: Text("XEM KẾT QUẢ"),
+            )
+          ],
+        ),
+      );
+    }
+
+    if (status == ScanStatus.error) {
+      return Container(
+        color: Colors.red[50],
+        padding: EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Icon(Icons.error, color: Colors.red),
+            SizedBox(width: 12),
+            Expanded(child: Text("Lỗi: ${prescriptionProcessingService.errorMessage}", style: TextStyle(color: Colors.red[800]))),
+            IconButton(
+              icon: Icon(Icons.close, color: Colors.red),
+              onPressed: () => prescriptionProcessingService.reset(),
+            )
+          ],
+        ),
+      );
+    }
+
+    return SizedBox.shrink();
   }
 
   Widget _buildSection(String title, List<Medication> meds) {

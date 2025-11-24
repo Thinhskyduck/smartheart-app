@@ -1,29 +1,135 @@
+const fs = require('fs'); // Đã bổ sung thư viện fs
 const Medication = require('../models/Medication');
-const axios = require('axios');
-const FormData = require('form-data');
-const fs = require('fs');
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+// Initialize Gemini API
+// Lưu ý: Nên dùng biến môi trường (process.env.GEMINI_API_KEY) để bảo mật thay vì hardcode
+const genAI = new GoogleGenerativeAI("AIzaSyA7HOYEA8bUHEet3oNSm86jT1-THLRArQY");
 
 exports.scanPrescription = async (req, res) => {
+    console.log('Received scan request');
     if (!req.file) {
+        console.log('No file uploaded');
         return res.status(400).json({ msg: 'No file uploaded' });
     }
 
     try {
-        const formData = new FormData();
-        formData.append('file', fs.createReadStream(req.file.path));
+        console.log('File received:', req.file.path);
 
-        const response = await axios.post('https://thinhskyduck-prescription-scanner.hf.space/scan', formData, {
-            headers: {
-                ...formData.getHeaders()
+        // Read file as base64
+        const fileData = fs.readFileSync(req.file.path);
+        const image = {
+            inlineData: {
+                data: fileData.toString("base64"),
+                mimeType: req.file.mimetype,
+            },
+        };
+
+        const prompt = `
+Bạn là chuyên gia y tế. Hãy:
+1. OCR toàn bộ nội dung trong ảnh toa thuốc.
+2. Chuẩn hóa lại thông tin.
+3. Summarize thành format sau:
+
+Ví dụ:
+        - Tên thuốc 1 (có thể là vật tư y tế,...)
+          •  Liều lượng: ...mg, ... viên.
+          •  Cách dùng: Uống (1/0.5/...) viên/lần, ngày (1-2...) lần vào buổi (sáng/trưa/chiều/tối) (sau/trước) ăn.
+        
+        - Tên thuốc 2 (có thể là vật tư y tế,...)
+          •  Liều lượng: ...mg, ... viên.
+          •  Cách dùng: Uống (1/0.5/...) viên/lần, ngày (1-2...) lần vào buổi (sáng/trưa/chiều/tối) (sau/trước) ăn.
+        
+        - Lịch tái khám: (nếu không có thì ghi 'Không có thông tin.').
+        
+        - Nơi tái khám: rrwrewqrq (nếu không có thì hãy ghi 'Cơ sở y tế đã khám bệnh.').
+        
+        - Ghi chú & lời dặn quan trọng:
+          • Ghi chú 1.
+          • Ghi chú 2.
+          ...
+          
+Trả lời bằng tiếng Việt, ngắn gọn, chính xác và chỉ trả về đúng định dạng của ví dụ, không được trả về text khác.
+`;
+
+        console.log('Sending to Gemini API...');
+        // Sử dụng model gemini-2.5-flash như bạn yêu cầu
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+        const result = await model.generateContent([prompt, image]);
+        const response = await result.response;
+        const text = response.text();
+
+        console.log('Gemini Response:', text);
+
+        // Parse the text response
+        const medications = [];
+        let followUpSchedule = "Không có thông tin.";
+        let followUpLocation = "Cơ sở y tế đã khám bệnh.";
+        let notes = "";
+
+        const lines = text.split('\n');
+        let currentMed = null;
+
+        for (let line of lines) {
+            line = line.trim();
+            if (!line) continue;
+
+            if (line.startsWith('- Lịch tái khám:')) {
+                followUpSchedule = line.replace('- Lịch tái khám:', '').trim();
+                currentMed = null;
+            } else if (line.startsWith('- Nơi tái khám:')) {
+                followUpLocation = line.replace('- Nơi tái khám:', '').trim();
+                currentMed = null;
+            } else if (line.startsWith('- Ghi chú & lời dặn quan trọng:')) {
+                currentMed = null; // Start collecting notes
+            } else if (line.startsWith('- ')) {
+                // New medication
+                if (currentMed) {
+                    medications.push(currentMed);
+                }
+                currentMed = {
+                    'Tên thuốc': line.replace('- ', '').trim(),
+                    'Liều lượng chính': '',
+                    'Cách dùng cơ bản': ''
+                };
+            } else if (line.startsWith('• Liều lượng:')) {
+                if (currentMed) {
+                    currentMed['Liều lượng chính'] = line.replace('• Liều lượng:', '').trim();
+                }
+            } else if (line.startsWith('• Cách dùng:')) {
+                if (currentMed) {
+                    currentMed['Cách dùng cơ bản'] = line.replace('• Cách dùng:', '').trim();
+                }
+            } else if (line.startsWith('• ')) {
+                // Could be a note bullet point
+                if (!currentMed) {
+                    notes += line.replace('• ', '').trim() + '\n';
+                }
             }
-        });
+        }
+        if (currentMed) {
+            medications.push(currentMed);
+        }
+
+        // Add global info to each med
+        const finalResponse = medications.map(med => ({
+            ...med,
+            'Lịch tái khám': followUpSchedule,
+            'Nơi tái khám': followUpLocation,
+            'Các ghi chú quan trọng, nhắc nhở': notes.trim()
+        }));
+
+        console.log('Parsed Data:', JSON.stringify(finalResponse, null, 2));
 
         // Clean up uploaded file
-        fs.unlinkSync(req.file.path);
+        if (fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
 
-        res.json(response.data);
+        res.json(finalResponse);
     } catch (err) {
-        console.error('Scan error:', err.message);
+        console.error('Scan error:', err);
         // Clean up file if error
         if (req.file && fs.existsSync(req.file.path)) {
             fs.unlinkSync(req.file.path);
@@ -109,7 +215,8 @@ exports.deleteMedication = async (req, res) => {
             return res.status(401).json({ msg: 'Not authorized' });
         }
 
-        await Medication.findByIdAndRemove(req.params.id);
+        // SỬA LỖI: Dùng findByIdAndDelete thay cho findByIdAndRemove
+        await Medication.findByIdAndDelete(req.params.id);
 
         res.json({ msg: 'Medication removed' });
     } catch (err) {
