@@ -20,6 +20,11 @@ class _MedicationScreenState extends State<MedicationScreen> {
     super.initState();
     medicationService.addListener(_update);
     prescriptionProcessingService.addListener(_update);
+    
+    // Auto-load if not loaded
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      medicationService.loadMedications();
+    });
   }
 
   @override
@@ -95,13 +100,18 @@ class _MedicationScreenState extends State<MedicationScreen> {
         children: [
           _buildScanStatusBanner(),
           Expanded(
-            child: ListView(
-              padding: EdgeInsets.all(16),
-              children: [
-                _buildSection("Buổi Sáng", medicationService.morningMeds),
-                _buildSection("Buổi Tối", medicationService.eveningMeds),
-              ],
-            ),
+            child: medicationService.isLoading && medicationService.morningMeds.isEmpty && medicationService.eveningMeds.isEmpty
+                ? Center(child: CircularProgressIndicator())
+                : RefreshIndicator(
+                    onRefresh: () => medicationService.loadMedications(forceReload: true),
+                    child: ListView(
+                      padding: EdgeInsets.all(16),
+                      children: [
+                        _buildSection("Buổi Sáng", medicationService.morningMeds),
+                        _buildSection("Buổi Tối", medicationService.eveningMeds),
+                      ],
+                    ),
+                  ),
           ),
         ],
       ),

@@ -104,7 +104,7 @@ class ApiService {
   }
 
   // Parse JSON response
-  Map<String, dynamic> parseResponse(http.Response response) {
+  dynamic parseResponse(http.Response response) {
     if (response.body.isEmpty) return {};
     return jsonDecode(response.body);
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/prescription_service.dart';
 import '../services/prescription_processing_service.dart';
+import '../services/medication_service.dart';
 
 const Color primaryColor = Color(0xFF2260FF);
 
@@ -28,6 +29,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
   List<ScannedMed> scannedMeds = [];
   String followUpSchedule = '';
   String generalAdvice = '';
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -51,6 +53,80 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         notes: item.notes,
       )).toList();
     });
+  }
+
+  Future<void> _saveAllMedications() async {
+    if (scannedMeds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Không có thuốc nào để thêm!"), backgroundColor: Colors.orange)
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    int successCount = 0;
+    int failCount = 0;
+
+    for (var scannedMed in scannedMeds) {
+      // Parse time from string (format: "HH:MM")
+      final timeParts = scannedMed.time.split(':');
+      final hour = int.tryParse(timeParts.first) ?? 8;
+      
+      // Determine session based on time
+      String session = hour < 13 ? 'morning' : 'evening';
+      
+      // Parse quantity from string or use default
+      int quantity = 30;
+      if (scannedMed.quantity != "Đang cập nhật") {
+        quantity = int.tryParse(scannedMed.quantity) ?? 30;
+      }
+
+      final medication = Medication(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: scannedMed.name,
+        dosage: scannedMed.dose,
+        quantity: quantity,
+        time: scannedMed.time,
+        session: session,
+        isTaken: false,
+      );
+
+      final success = await medicationService.addMedication(medication);
+      
+      if (success) {
+        successCount++;
+      } else {
+        failCount++;
+      }
+    }
+
+    setState(() => _isLoading = false);
+
+    if (failCount == 0) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Đã thêm $successCount thuốc vào hộp thuốc!"),
+          backgroundColor: Colors.green,
+        )
+      );
+    } else if (successCount > 0) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Đã thêm $successCount thuốc. $failCount thuốc thất bại."),
+          backgroundColor: Colors.orange,
+        )
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Lỗi khi thêm thuốc. Vui lòng thử lại."),
+          backgroundColor: Colors.red,
+        )
+      );
+    }
   }
 
   @override
@@ -113,18 +189,23 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
                 ),
                 SizedBox(height: 12),
                 ElevatedButton(
-                  onPressed: () {
-                    // TODO: Lưu vào MedicationService
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Đã thêm thuốc vào lịch!"), backgroundColor: Colors.green));
-                  },
+                  onPressed: _isLoading ? null : _saveAllMedications,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Color(0xFF1A1A2E),
                     foregroundColor: Colors.white,
                     minimumSize: Size(double.infinity, 55),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                   ),
-                  child: Text("Thêm tất cả vào hộp thuốc", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  child: _isLoading
+                      ? SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Text("Thêm tất cả vào hộp thuốc", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),

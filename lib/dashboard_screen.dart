@@ -213,11 +213,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Expanded(
           child: GestureDetector(
             onTap: () {
-               showModalBottomSheet(
+              // Mở bottom sheet với chiều cao scroll được
+              showModalBottomSheet(
                 context: context,
-                isScrollControlled: true,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24.0))),
-                builder: (context) => SymptomReportScreen(),
+                isScrollControlled: true, // Quan trọng: Để modal full màn hình
+                backgroundColor: Colors.transparent,
+                builder: (context) => SymptomReportScreen(), // Gọi màn hình mới
               );
             },
             child: Container(

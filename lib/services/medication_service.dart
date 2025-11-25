@@ -54,9 +54,11 @@ class MedicationService with ChangeNotifier {
   List<Medication> _morningMeds = [];
   List<Medication> _eveningMeds = [];
   bool _isLoaded = false;
+  bool _isLoading = false;
 
   List<Medication> get morningMeds => _morningMeds;
   List<Medication> get eveningMeds => _eveningMeds;
+  bool get isLoading => _isLoading;
 
   TimeSession get currentSession {
     final hour = DateTime.now().hour;
@@ -64,14 +66,27 @@ class MedicationService with ChangeNotifier {
     return TimeSession.evening;
   }
 
-  // Load medications from backend
-  Future<void> loadMedications() async {
-    if (_isLoaded) return;
+  // Load medications from backend - WITH FORCE RELOAD OPTION
+  Future<void> loadMedications({bool forceReload = false}) async {
+    // Allow force reload to fix the issue where medications don't show after app restart
+    if (_isLoaded && !forceReload) return;
+    if (_isLoading) return;
+
+    _isLoading = true;
+    notifyListeners();
 
     try {
+      debugPrint('🔄 Loading medications from backend...');
+      debugPrint('Token exists: ${apiService.token != null}');
+      
       final response = await apiService.get(ApiConfig.medications);
       
+      debugPrint('Load medications response: ${response.statusCode}');
+      
       if (apiService.isSuccess(response)) {
+        final responseBody = response.body;
+        debugPrint('Response body: $responseBody');
+        
         final List<dynamic> data = apiService.parseResponse(response) as List;
         final medications = data.map((json) => Medication.fromJson(json)).toList();
         
@@ -79,20 +94,34 @@ class MedicationService with ChangeNotifier {
         _eveningMeds = medications.where((m) => m.session == 'evening').toList();
         
         _isLoaded = true;
-        notifyListeners();
+        
+        debugPrint('✅ Loaded ${medications.length} medications (${_morningMeds.length} morning, ${_eveningMeds.length} evening)');
+      } else {
+        debugPrint('❌ Failed to load medications: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('Load medications error: $e');
+      debugPrint('❌ Load medications error: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
   // Add new medication
   Future<bool> addMedication(Medication medication) async {
     try {
+      debugPrint('=== ADD MEDICATION DEBUG ===');
+      debugPrint('Medication to add: ${medication.toJson()}');
+      debugPrint('API URL: ${ApiConfig.medications}');
+      debugPrint('Token exists: ${apiService.token != null}');
+      
       final response = await apiService.post(
         ApiConfig.medications,
         body: medication.toJson(),
       );
+
+      debugPrint('Response status: ${response.statusCode}');
+      debugPrint('Response body: ${response.body}');
 
       if (apiService.isSuccess(response)) {
         final newMed = Medication.fromJson(apiService.parseResponse(response));
@@ -104,12 +133,14 @@ class MedicationService with ChangeNotifier {
         }
         
         notifyListeners();
+        debugPrint('✅ Medication added successfully: ${newMed.id}');
         return true;
       }
       
+      debugPrint('❌ API returned error status: ${response.statusCode}');
       return false;
     } catch (e) {
-      debugPrint('Add medication error: $e');
+      debugPrint('❌ Add medication error: $e');
       return false;
     }
   }

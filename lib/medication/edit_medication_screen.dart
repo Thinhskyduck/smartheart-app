@@ -62,6 +62,41 @@ class _EditMedicationScreenState extends State<EditMedicationScreen> {
     );
   }
 
+  void _delete() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text("Xóa thuốc?"),
+        content: Text("Bạn có chắc chắn muốn xóa thuốc này khỏi danh sách không?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text("Hủy"),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext); // Close dialog
+              final success = await medicationService.deleteMedication(widget.medication.id);
+              if (success) {
+                if (!mounted) return;
+                Navigator.pop(context); // Close screen using the outer context
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Đã xóa thuốc thành công"), backgroundColor: Colors.green),
+                );
+              } else {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Lỗi khi xóa thuốc"), backgroundColor: Colors.red),
+                );
+              }
+            },
+            child: Text("Xóa", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -96,7 +131,17 @@ class _EditMedicationScreenState extends State<EditMedicationScreen> {
             onPressed: _save,
             child: Text("Lưu thay đổi"),
             style: ElevatedButton.styleFrom(minimumSize: Size(double.infinity, 50)),
-          )
+          ),
+          SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: _delete,
+            icon: Icon(Icons.delete, color: Colors.red),
+            label: Text("Xóa thuốc", style: TextStyle(color: Colors.red)),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: Colors.red),
+              minimumSize: Size(double.infinity, 50),
+            ),
+          ),
         ],
       ),
     );

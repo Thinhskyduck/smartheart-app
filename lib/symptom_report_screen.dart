@@ -1,8 +1,4 @@
-// Tên file: lib/symptom_report_screen.dart
 import 'package:flutter/material.dart';
-
-// Mã màu chính của bạn
-const Color primaryColor = Color(0xFF2260FF);
 
 class SymptomReportScreen extends StatefulWidget {
   @override
@@ -10,149 +6,182 @@ class SymptomReportScreen extends StatefulWidget {
 }
 
 class _SymptomReportScreenState extends State<SymptomReportScreen> {
-  // Dữ liệu giả cho các triệu chứng
-  final List<String> _symptoms = [
-    "Khó thở", "Sưng mắt cá", "Chóng mặt", "Ho khan", "Mệt mỏi", "Tức ngực", "Khác"
-  ];
-  // Lưu trữ các triệu chứng được chọn
-  Set<String> _selectedSymptoms = {};
+  // --- BIẾN LƯU TRỮ GIÁ TRỊ TRẢ LỜI ---
   
-  // Lưu trữ cảm xúc được chọn
-  int _selectedFeeling = 1; // 0=Mệt, 1=Bình thường, 2=Khỏe
+  // 1. Sàng lọc buổi sáng
+  int? _sleepStatus; // 0: Ngon giấc, 1: Kê cao gối, 2: Ngộp thở
+  int? _legStatus;   // 0: Bình thường, 1: Sưng/phù
+  final TextEditingController _weightController = TextEditingController();
+
+  // 2. Sàng lọc trong ngày
+  int? _fatigueStatus;  // 0: Khỏe, 1: Mệt, 2: Kiệt sức
+  int? _breathingStatus; // 0: Bình thường, 1: Hơi khó, 2: Khó thở khi nghỉ
+
+  // 3. Kiểm tra bất thường (Trang 3 PDF)
+  int? _heartBeatStatus; // 0: Bình thường, 1: Hồi hộp
+  int? _dizzinessStatus; // 0: Không, 1: Có
+
+  @override
+  void dispose() {
+    _weightController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      // Thêm padding cho vùng an toàn (notch)
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      height: MediaQuery.of(context).size.height * 0.9, // Chiếm 90% màn hình
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(24.0),
-          topRight: Radius.circular(24.0),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: SingleChildScrollView( // Cho phép cuộn khi bàn phím hiện
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Thanh "handle"
-              Container(
-                width: 60,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-              SizedBox(height: 16),
-              Text(
-                "Báo cáo Triệu chứng",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 24),
+      child: Column(
+        children: [
+          // --- HEADER ---
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text("Báo cáo sức khỏe", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                IconButton(icon: Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+              ],
+            ),
+          ),
+          Divider(height: 1),
+          
+          // --- NỘI DUNG FORM ---
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.all(16),
+              children: [
+                // === PHẦN 1: BUỔI SÁNG ===
+                _buildSectionHeader("1. SÀNG LỌC BUỔI SÁNG", "Kiểm tra dấu hiệu ứ dịch sau một đêm"),
+                
+                _buildQuestionTitle("1. Giấc ngủ đêm qua:"),
+                _buildRadioOption(0, "Ngon giấc, nằm đầu bằng", _sleepStatus, (val) => setState(() => _sleepStatus = val)),
+                _buildRadioOption(1, "Phải kê cao gối mới thở được", _sleepStatus, (val) => setState(() => _sleepStatus = val)),
+                _buildRadioOption(2, "Bị thức giấc vì ngộp thở", _sleepStatus, (val) => setState(() => _sleepStatus = val), isAlert: true),
 
-              // 1. Cảm thấy thế nào?
-              Text(
-                "Hôm nay bạn cảm thấy thế nào?",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-              ),
-              SizedBox(height: 12),
-              ToggleButtons(
-                isSelected: [_selectedFeeling == 0, _selectedFeeling == 1, _selectedFeeling == 2],
-                onPressed: (index) {
-                  setState(() {
-                    _selectedFeeling = index;
-                  });
-                },
-                borderRadius: BorderRadius.circular(12),
-                selectedColor: Colors.white,
-                fillColor: primaryColor, // <-- DÙNG MÀU CHÍNH
-                children: [
-                  Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Icon(Icons.sentiment_very_dissatisfied, size: 30)),
-                  Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Icon(Icons.sentiment_neutral, size: 30)),
-                  Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Icon(Icons.sentiment_satisfied, size: 30)),
-                ],
-              ),
-              SizedBox(height: 24),
+                SizedBox(height: 16),
+                _buildQuestionTitle("2. Tình trạng chân:"),
+                _buildRadioOption(0, "Bình thường", _legStatus, (val) => setState(() => _legStatus = val)),
+                _buildRadioOption(1, "Có sưng/phù (Ấn vào lõm)", _legStatus, (val) => setState(() => _legStatus = val), isAlert: true),
 
-              // 2. Triệu chứng
-              Text(
-                "Bạn có triệu chứng nào?",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-              ),
-              SizedBox(height: 12),
-              // Dùng Wrap để tự động xuống dòng
-              Wrap(
-                spacing: 10.0, // Khoảng cách ngang
-                runSpacing: 8.0, // Khoảng cách dọc
-                children: _symptoms.map((symptom) {
-                  final isSelected = _selectedSymptoms.contains(symptom);
-                  return FilterChip(
-                    label: Text(symptom, style: TextStyle(fontSize: 16)),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      setState(() {
-                        if (selected) {
-                          _selectedSymptoms.add(symptom);
-                        } else {
-                          _selectedSymptoms.remove(symptom);
-                        }
-                      });
-                    },
-                    selectedColor: primaryColor.withValues(alpha: 0.2), // Màu nhạt
-                    checkmarkColor: primaryColor,
-                    labelStyle: TextStyle(
-                      color: isSelected ? primaryColor : Colors.black87,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    ),
-                  );
-                }).toList(),
-              ),
-              SizedBox(height: 24),
-
-              // 3. Ghi chú
-              TextField(
-                decoration: InputDecoration(
-                  labelText: "Ghi chú thêm (Nếu có)",
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: primaryColor, width: 2),
+                SizedBox(height: 16),
+                _buildQuestionTitle("3. Cân nặng sáng nay (kg):"),
+                TextField(
+                  controller: _weightController,
+                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    hintText: "Nhập số kg (VD: 65.5)",
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    suffixText: "kg"
                   ),
                 ),
-                maxLines: 3,
-              ),
-              SizedBox(height: 24),
 
-              // 4. Nút Gửi
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor, // <-- DÙNG MÀU CHÍNH
-                  foregroundColor: Colors.white,
-                  minimumSize: Size(double.infinity, 60),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  textStyle:
-                      TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                child: Text("Gửi Báo Cáo"),
+                SizedBox(height: 24),
+                Divider(thickness: 4, color: Colors.grey[100]),
+                SizedBox(height: 24),
+
+                // === PHẦN 2: TRONG NGÀY ===
+                _buildSectionHeader("2. SÀNG LỌC TRONG NGÀY", "Đánh giá khả năng gắng sức và mệt mỏi"),
+                
+                _buildQuestionTitle("4. Cảm giác hôm nay:"),
+                _buildRadioOption(0, "Khỏe khoắn", _fatigueStatus, (val) => setState(() => _fatigueStatus = val)),
+                _buildRadioOption(1, "Mệt hơn thường lệ", _fatigueStatus, (val) => setState(() => _fatigueStatus = val)),
+                _buildRadioOption(2, "Kiệt sức / Rất mệt", _fatigueStatus, (val) => setState(() => _fatigueStatus = val), isAlert: true),
+
+                SizedBox(height: 16),
+                _buildQuestionTitle("5. Khi đi lại hoặc vệ sinh:"),
+                _buildRadioOption(0, "Thở bình thường", _breathingStatus, (val) => setState(() => _breathingStatus = val)),
+                _buildRadioOption(1, "Hơi khó thở", _breathingStatus, (val) => setState(() => _breathingStatus = val)),
+                _buildRadioOption(2, "Khó thở ngay cả khi nghỉ", _breathingStatus, (val) => setState(() => _breathingStatus = val), isAlert: true),
+
+                SizedBox(height: 24),
+                Divider(thickness: 4, color: Colors.grey[100]),
+                SizedBox(height: 24),
+
+                // === PHẦN 3: BẤT THƯỜNG ===
+                _buildSectionHeader("3. KIỂM TRA BẤT THƯỜNG", "Xác nhận rối loạn nhịp hoặc huyết áp"),
+                
+                _buildQuestionTitle("6. Nhịp tim hiện tại:"),
+                _buildRadioOption(0, "Êm dịu / Bình thường", _heartBeatStatus, (val) => setState(() => _heartBeatStatus = val)),
+                _buildRadioOption(1, "Hồi hộp / Đánh trống ngực", _heartBeatStatus, (val) => setState(() => _heartBeatStatus = val), isAlert: true),
+
+                SizedBox(height: 16),
+                _buildQuestionTitle("7. Dấu hiệu chóng mặt:"),
+                _buildRadioOption(0, "Không", _dizzinessStatus, (val) => setState(() => _dizzinessStatus = val)),
+                _buildRadioOption(1, "Có (Xây xẩm / Choáng)", _dizzinessStatus, (val) => setState(() => _dizzinessStatus = val), isAlert: true),
+                
+                SizedBox(height: 30),
+              ],
+            ),
+          ),
+
+          // --- NÚT GỬI ---
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
                 onPressed: () {
-                  // Logic gửi dữ liệu
-                  Navigator.pop(context); // Tắt bottom sheet
-                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Đã gửi báo cáo cho bác sĩ!"), backgroundColor: Colors.green[700]),
+                  // Xử lý logic gửi báo cáo ở đây
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Đã gửi báo cáo thành công!"), backgroundColor: Colors.green),
                   );
                 },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFF2260FF),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text("GỬI BÁO CÁO", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
               ),
-            ],
-          ),
-        ),
+            ),
+          )
+        ],
       ),
+    );
+  }
+
+  // Helper Widget: Tiêu đề phần
+  Widget _buildSectionHeader(String title, String subtitle) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2260FF))),
+          SizedBox(height: 4),
+          Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic)),
+        ],
+      ),
+    );
+  }
+
+  // Helper Widget: Tiêu đề câu hỏi
+  Widget _buildQuestionTitle(String text) {
+    return Text(text, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.black87));
+  }
+
+  // Helper Widget: Lựa chọn Radio
+  Widget _buildRadioOption(int value, String text, int? groupValue, Function(int?) onChanged, {bool isAlert = false}) {
+    return RadioListTile<int>(
+      contentPadding: EdgeInsets.zero,
+      value: value,
+      groupValue: groupValue,
+      onChanged: onChanged,
+      title: Text(
+        text, 
+        style: TextStyle(
+          color: (groupValue == value && isAlert) ? Colors.red : Colors.black87,
+          fontWeight: (groupValue == value) ? FontWeight.bold : FontWeight.normal
+        )
+      ),
+      activeColor: isAlert ? Colors.red : Color(0xFF2260FF),
     );
   }
 }

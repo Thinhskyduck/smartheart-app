@@ -79,8 +79,9 @@ class _MainAppShellState extends State<MainAppShell> {
   @override
   void initState() {
     super.initState();
-    // Load medications when app starts
-    medicationService.loadMedications();
+    // Force reload medications from backend (with valid token)
+    // This fixes the issue where medications don't show after app restart
+    medicationService.loadMedications(forceReload: true);
   }
 
   void _onItemTapped(int index) {
