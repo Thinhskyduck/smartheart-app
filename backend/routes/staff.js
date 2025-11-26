@@ -132,4 +132,30 @@ router.get('/patients-health', async (req, res) => {
     }
 });
 
+// GET /api/staff/patient/:id/medications
+// Lấy danh sách thuốc của một bệnh nhân cụ thể
+router.get('/patient/:id/medications', async (req, res) => {
+    try {
+        // Kiểm tra quyền (bác sĩ hoặc giám hộ) - Ở đây tạm bỏ qua middleware check role kỹ
+        const medications = await Medication.find({ user: req.params.id }).sort({ time: 1 });
+        res.json(medications);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ msg: 'Server Error' });
+    }
+});
+
+// GET /api/staff/patient/:id/health
+// Lấy lịch sử sức khỏe của một bệnh nhân cụ thể
+router.get('/patient/:id/health', async (req, res) => {
+    try {
+        // Lấy toàn bộ lịch sử đo, sắp xếp mới nhất trước
+        const metrics = await HealthMetric.find({ user: req.params.id }).sort({ timestamp: -1 });
+        res.json(metrics);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ msg: 'Server Error' });
+    }
+});
+
 module.exports = router;

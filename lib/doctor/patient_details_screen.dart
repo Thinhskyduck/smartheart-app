@@ -1,57 +1,65 @@
-// Tên file: lib/doctor/patient_details_screen.dart
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
+import '../services/staff_service.dart'; // Import service vừa tạo
 
 const Color primaryColor = Color(0xFF2260FF);
 
 enum AIStatus { danger, warning, stable }
 
-// Giả lập model Cảnh báo
-class Alert {
-  final String id;
-  final AIStatus type;
-  final String title;
-  final String description;
-  final DateTime timestamp;
-  Alert({required this.id, required this.type, required this.title, required this.description, required this.timestamp});
-}
-
-class PatientDetailsScreen extends StatelessWidget {
-  final dynamic patientData; // Changed to dynamic to accept JSON map
+class PatientDetailsScreen extends StatefulWidget {
+  final dynamic patientData; // Dữ liệu được truyền từ Dashboard
   const PatientDetailsScreen({Key? key, required this.patientData}) : super(key: key);
 
-  // Dữ liệu giả cho Lịch sử cảnh báo
-  static final List<Alert> _alerts = [
-    Alert(id: "A01", type: AIStatus.danger, title: "SpO2 Thấp Nguy Hiểm", description: "AI Lớp 1 phát hiện SpO2 là 89%.", timestamp: DateTime.now().subtract(Duration(minutes: 15))),
-    Alert(id: "A02", type: AIStatus.warning, title: "Nhịp Tim Tăng Bất Thường", description: "AI Lớp 2 phát hiện nhịp tim lúc nghỉ tăng 15% so với nền.", timestamp: DateTime.now().subtract(Duration(hours: 2))),
-    Alert(id: "A03", type: AIStatus.warning, title: "HRV Giảm", description: "AI Lớp 2 phát hiện HRV giảm 30% so với trung bình tuần.", timestamp: DateTime.now().subtract(Duration(days: 1))),
-    Alert(id: "A04", type: AIStatus.stable, title: "Uống thuốc", description: "Bệnh nhân đã xác nhận uống thuốc buổi tối.", timestamp: DateTime.now().subtract(Duration(days: 1, hours: 2))),
-  ];
+  @override
+  _PatientDetailsScreenState createState() => _PatientDetailsScreenState();
+}
+
+class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
+  bool _isLoadingMeds = true;
+  bool _isLoadingHistory = true;
+  List<dynamic> _medications = [];
+  List<dynamic> _healthHistory = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDetailData();
+  }
+
+  void _fetchDetailData() {
+    final patientId = widget.patientData['id'] ?? widget.patientData['user']['_id'];
+    
+    // 1. Lấy danh sách thuốc
+    staffService.getPatientMedications(patientId).then((data) {
+      if (mounted) setState(() {
+        _medications = data;
+        _isLoadingMeds = false;
+      });
+    });
+
+    // 2. Lấy lịch sử sức khỏe
+    staffService.getPatientHealthHistory(patientId).then((data) {
+      if (mounted) setState(() {
+        _healthHistory = data;
+        _isLoadingHistory = false;
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final user = patientData['user'];
-    final name = user['fullName'] ?? 'Không tên';
-
+    // Dữ liệu patientData này lấy từ Dashboard (API /patients-health)
+    final name = widget.patientData['name'] ?? widget.patientData['user']?['fullName'] ?? 'Bệnh nhân';
+    
     return DefaultTabController(
       length: 4,
       child: Scaffold(
-        backgroundColor: Colors.grey[200],
+        backgroundColor: Colors.grey[100],
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 1,
           title: Text(name, style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
           iconTheme: IconThemeData(color: Colors.black),
-          actions: [
-            IconButton(
-              icon: Icon(Icons.message_outlined, color: primaryColor),
-              onPressed: () {},
-            ),
-            IconButton(
-              icon: Icon(Icons.call_outlined, color: Colors.green[700]),
-              onPressed: () {},
-            ),
-          ],
           bottom: TabBar(
             labelColor: primaryColor,
             unselectedLabelColor: Colors.grey[600],
@@ -59,7 +67,7 @@ class PatientDetailsScreen extends StatelessWidget {
             isScrollable: false,
             tabs: [
               Tab(child: Text("Tổng quan")),
-              Tab(child: Text("Biểu đồ")),
+              Tab(child: Text("Thuốc")), // Thay thế Biểu đồ
               Tab(child: Text("Lịch sử")),
               Tab(child: Text("Hồ sơ")),
             ],
@@ -67,9 +75,9 @@ class PatientDetailsScreen extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            _buildOverviewTab(context),
-            _buildVitalsTab(),
-            _buildAlertsHistoryTab(context),
+            _buildOverviewTab(),
+            _buildMedicationsTab(), // Tab mới
+            _buildHistoryTab(),     // Tab thực tế từ DB
             _buildProfileTab(),
           ],
         ),
@@ -77,270 +85,184 @@ class PatientDetailsScreen extends StatelessWidget {
     );
   }
 
-  // === CÁC WIDGET CHO TỪNG TAB ===
+  // 1. TAB TỔNG QUAN (Dữ liệu thực từ Dashboard truyền qua)
+  Widget _buildOverviewTab() {
+    final statusStr = widget.patientData['status']?.toString() ?? 'stable';
+    AIStatus status;
+    if (statusStr == 'danger') status = AIStatus.danger;
+    else if (statusStr == 'warning') status = AIStatus.warning;
+    else status = AIStatus.stable;
 
-  Color _getStatusColor(AIStatus status) {
+    Color color;
+    String statusText;
     switch (status) {
-      case AIStatus.stable: return Colors.green.shade600;
-      case AIStatus.warning: return Colors.orange.shade700;
-      case AIStatus.danger: return Colors.red.shade700;
+      case AIStatus.danger:
+        color = Colors.red;
+        statusText = "NGUY HIỂM";
+        break;
+      case AIStatus.warning:
+        color = Colors.orange;
+        statusText = "CẦN CHÚ Ý";
+        break;
+      case AIStatus.stable:
+        color = Colors.green;
+        statusText = "ỔN ĐỊNH";
+        break;
     }
-  }
-  
-  String _getStatusText(AIStatus status) {
-    switch (status) {
-      case AIStatus.stable: return "Ổn định";
-      case AIStatus.warning: return "Cần chú ý";
-      case AIStatus.danger: return "Nguy hiểm";
-    }
-  }
 
-  // 1. TAB TỔNG QUAN
-  Widget _buildOverviewTab(BuildContext context) {
-    // Giả lập status, sau này sẽ lấy từ API
-    final status = AIStatus.warning; 
-    final statusColor = _getStatusColor(status);
-    
+    // Parse last update time
+    DateTime lastUpdate = DateTime.now();
+    if (widget.patientData['lastUpdate'] != null) {
+      try {
+        lastUpdate = DateTime.parse(widget.patientData['lastUpdate'].toString());
+      } catch (_) {}
+    }
+
     return ListView(
       padding: EdgeInsets.all(16),
       children: [
         Card(
-          color: statusColor,
+          color: color,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: Padding(
             padding: const EdgeInsets.all(20.0),
             child: Column(
               children: [
-                Text("Trạng thái hiện tại", style: TextStyle(fontSize: 18, color: Colors.white70)),
+                Text("Trạng thái hiện tại", style: TextStyle(fontSize: 16, color: Colors.white70)),
                 SizedBox(height: 8),
-                Text(_getStatusText(status).toUpperCase(), style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+                Text(statusText, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
                 SizedBox(height: 8),
-                Text("Cảnh báo giả lập", style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.9)), textAlign: TextAlign.center),
+                Text(
+                  widget.patientData['lastAlert'] ?? "Không có cảnh báo", 
+                  style: TextStyle(fontSize: 16, color: Colors.white, fontStyle: FontStyle.italic),
+                  textAlign: TextAlign.center
+                ),
+                SizedBox(height: 8),
+                Text(
+                  "Cập nhật: ${DateFormat('HH:mm dd/MM').format(lastUpdate)}",
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                )
               ],
             ),
           ),
         ),
         SizedBox(height: 16),
+        // Hiển thị chỉ số báo động (nếu có)
+        if (widget.patientData['criticalValue'] != null)
         Card(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text("Các chỉ số chính (Gần nhất)", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                SizedBox(height: 12),
-                _buildVitalsRow(Icons.favorite, "Nhịp tim", "68 bpm", Colors.red),
-                _buildVitalsRow(Icons.air, "SpO2", "96%", Colors.blue),
-                _buildVitalsRow(Icons.show_chart, "HRV", "42 ms", Colors.green),
-              ],
+          child: ListTile(
+            leading: Icon(Icons.warning, color: color, size: 30),
+            title: Text("Chỉ số báo động: ${widget.patientData['criticalMetric']}"),
+            trailing: Text(
+              "${widget.patientData['criticalValue']}",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color),
             ),
           ),
-        )
+        ),
       ],
     );
   }
 
-  Widget _buildVitalsRow(IconData icon, String metric, String value, Color color) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 28),
-          SizedBox(width: 16),
-          Text(metric, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w500)),
-          Spacer(),
-          Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
-  }
+  // 2. TAB THUỐC (Read-only)
+  Widget _buildMedicationsTab() {
+    if (_isLoadingMeds) return Center(child: CircularProgressIndicator());
+    if (_medications.isEmpty) return Center(child: Text("Bệnh nhân chưa có đơn thuốc nào"));
 
-  // 2. TAB BIỂU ĐỒ
-  Widget _buildVitalsTab() {
-    return ListView(
-      padding: EdgeInsets.all(16),
-      children: [
-        _buildVitalsChartCard("Nhịp tim lúc nghỉ (7 ngày)", Colors.red, [65, 66, 68, 75, 70, 68, 92], "bpm"),
-        SizedBox(height: 16),
-        _buildVitalsChartCard("SpO2 ban đêm (7 ngày)", Colors.blue, [96, 97, 95, 96, 94, 95, 89], "%"),
-        SizedBox(height: 16),
-        _buildVitalsChartCard("Biến thiên nhịp tim (7 ngày)", Colors.green, [42, 45, 41, 38, 35, 30, 25], "ms"),
-      ],
-    );
-  }
-
-  Widget _buildVitalsChartCard(String title, Color color, List<double> data, String unit) {
-    final spots = data.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList();
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            SizedBox(height: 24),
-            SizedBox(
-              height: 150,
-              child: LineChart(
-                LineChartData(
-                  gridData: FlGridData(show: false),
-                  titlesData: FlTitlesData(show: false),
-                  borderData: FlBorderData(show: false),
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: spots, isCurved: true, color: color, barWidth: 4,
-                      isStrokeCapRound: true, dotData: FlDotData(show: false),
-                      belowBarData: BarAreaData(show: true, color: color.withOpacity(0.2)),
-                    )
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // 3. TAB LỊCH SỬ CẢNH BÁO
-  Widget _buildAlertsHistoryTab(BuildContext context) {
-    if (_alerts.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.history_toggle_off, size: 60, color: Colors.grey[400]),
-            SizedBox(height: 16),
-            Text("Không có lịch sử cảnh báo nào.", style: TextStyle(fontSize: 17, color: Colors.grey[600])),
-          ],
-        ),
-      );
-    }
-    
     return ListView.builder(
-      padding: EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-      itemCount: _alerts.length,
+      padding: EdgeInsets.all(16),
+      itemCount: _medications.length,
       itemBuilder: (context, index) {
-        final alert = _alerts[index];
-        return _buildAlertTimelineItem(context, alert, index == 0, index == _alerts.length - 1);
+        final med = _medications[index];
+        final isTaken = med['isTaken'] == true;
+        
+        return Card(
+          margin: EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: ListTile(
+            leading: Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: primaryColor.withOpacity(0.1),
+                shape: BoxShape.circle
+              ),
+              child: Icon(Icons.medication, color: primaryColor),
+            ),
+            title: Text(med['name'] ?? '', style: TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text("${med['dosage']} • ${med['time']} (${med['session'] == 'morning' ? 'Sáng' : 'Tối'})"),
+            trailing: isTaken 
+                ? Icon(Icons.check_circle, color: Colors.green)
+                : Icon(Icons.radio_button_unchecked, color: Colors.grey),
+          ),
+        );
       },
     );
   }
 
-  Widget _buildAlertTimelineItem(BuildContext context, Alert alert, bool isFirst, bool isLast) {
-    final color = _getStatusColor(alert.type);
-    final icon = alert.type == AIStatus.danger ? Icons.dangerous_outlined
-        : alert.type == AIStatus.warning ? Icons.warning_amber_rounded
-        : Icons.check_circle_outline;
+  // 3. TAB LỊCH SỬ (Dữ liệu thực từ DB)
+  Widget _buildHistoryTab() {
+    if (_isLoadingHistory) return Center(child: CircularProgressIndicator());
+    if (_healthHistory.isEmpty) return Center(child: Text("Chưa có lịch sử đo"));
 
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            width: 40,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (!isFirst) Expanded(child: VerticalDivider(thickness: 2, color: Colors.grey[300])),
-                CircleAvatar(backgroundColor: color, radius: 12, child: Icon(icon, color: Colors.white, size: 16)),
-                if (!isLast) Expanded(child: VerticalDivider(thickness: 2, color: Colors.grey[300])),
-              ],
-            ),
+    return ListView.builder(
+      padding: EdgeInsets.all(16),
+      itemCount: _healthHistory.length,
+      itemBuilder: (context, index) {
+        final item = _healthHistory[index];
+        final date = DateTime.parse(item['timestamp']);
+        final type = item['type'];
+        final value = item['value'];
+        final unit = item['unit'] ?? '';
+        
+        IconData icon;
+        Color color;
+        String title;
+
+        switch (type) {
+          case 'hr': icon = Icons.favorite; color = Colors.red; title = "Nhịp tim"; break;
+          case 'bp': icon = Icons.compress; color = Colors.orange; title = "Huyết áp"; break;
+          case 'spo2': icon = Icons.water_drop; color = Colors.blue; title = "SpO2"; break;
+          case 'weight': icon = Icons.monitor_weight; color = Colors.green; title = "Cân nặng"; break;
+          case 'hrv': icon = Icons.show_chart; color = Colors.purple; title = "HRV"; break;
+          default: icon = Icons.health_and_safety; color = Colors.grey; title = "Chỉ số khác";
+        }
+
+        return Card(
+          elevation: 0,
+          margin: EdgeInsets.only(bottom: 8),
+          color: Colors.white,
+          child: ListTile(
+            leading: Icon(icon, color: color),
+            title: Text(title, style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: Text(DateFormat('HH:mm - dd/MM/yyyy').format(date)),
+            trailing: Text("$value $unit", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
           ),
-          Expanded(
-            child: Container(
-              margin: EdgeInsets.only(bottom: 12, right: 8, top: 4),
-              child: Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(alert.title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
-                      SizedBox(height: 4),
-                      Text(alert.description, style: TextStyle(fontSize: 15)),
-                      SizedBox(height: 8),
-                      Text("Thời gian: ${TimeOfDay.fromDateTime(alert.timestamp).format(context)} - ${alert.timestamp.day}/${alert.timestamp.month}", style: TextStyle(fontSize: 13, color: Colors.grey[600])),
-                      if (alert.type != AIStatus.stable) ...[
-                        Divider(),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            TextButton(onPressed: () {}, child: Text("Bỏ qua")),
-                            ElevatedButton(onPressed: () {}, child: Text("Xác nhận"), style: ElevatedButton.styleFrom(backgroundColor: color))
-                          ],
-                        )
-                      ]
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          )
-        ],
-      ),
+        );
+      },
     );
   }
 
   // 4. TAB HỒ SƠ
   Widget _buildProfileTab() {
-    final user = patientData['user'];
+    // Nếu dữ liệu truyền qua từ màn hình dashboard có đủ field thì dùng, không thì hiện placeholder
+    final phone = widget.patientData['phoneNumber'] ?? 'N/A';
+    final guardianPhone = widget.patientData['guardianPhone'] ?? 'Không có';
     
     return ListView(
       padding: EdgeInsets.all(16),
       children: [
-        _buildProfileSectionCard("Thông tin Cá nhân", [
-          _buildProfileInfoTile("Mã Bệnh nhân", user['_id'] ?? 'N/A'),
-          _buildProfileInfoTile("Ngày sinh", user['yearOfBirth'] ?? 'N/A'),
-          _buildProfileInfoTile("Giới tính", "Nam"), // Placeholder
-        ]),
-        SizedBox(height: 16),
-        _buildProfileSectionCard("Thông tin Y tế", [
-          _buildProfileInfoTile("Chẩn đoán", "Suy tim mạn tính (CHF) - NYHA II"), // Placeholder
-          _buildProfileInfoTile("Bác sĩ điều trị", "BS. Nguyễn Thị Yến"), // Placeholder
-          _buildProfileInfoTile("Thuốc đang sử dụng", "Aspirin, Metoprolol, Atorvastatin, Lisinoprol"), // Placeholder
-        ]),
-        SizedBox(height: 16),
-        _buildProfileSectionCard("Liên hệ", [
-          _buildProfileInfoTile("Số điện thoại", user['phoneNumber'] ?? 'N/A'),
-          _buildProfileInfoTile("Người giám hộ", user['guardianPhone'] ?? 'Không có'),
-        ]),
-      ],
-    );
-  }
-
-  Widget _buildProfileSectionCard(String title, List<Widget> children) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            Divider(height: 20),
-            ...children
-          ],
+        ListTile(
+          leading: Icon(Icons.phone, color: primaryColor),
+          title: Text("Số điện thoại"),
+          subtitle: Text(phone),
         ),
-      ),
-    );
-  }
-
-  Widget _buildProfileInfoTile(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: TextStyle(fontSize: 15, color: Colors.grey[600])),
-          SizedBox(height: 2),
-          Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-        ],
-      ),
+        Divider(),
+        ListTile(
+          leading: Icon(Icons.family_restroom, color: Colors.orange),
+          title: Text("Người giám hộ"),
+          subtitle: Text(guardianPhone),
+        ),
+      ],
     );
   }
 }
