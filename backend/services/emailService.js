@@ -3,25 +3,22 @@ const nodemailer = require('nodemailer');
 
 // Email configuration với DEBUG
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587, // Đổi sang 587
-  secure: false, // false cho cổng 587 (sẽ tự động nâng cấp lên TLS)
+  // Thay đổi Host sang Brevo
+  host: 'smtp-relay.brevo.com', 
+  port: 587, 
+  secure: false, // Brevo dùng STARTTLS ở cổng 587
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD
+    user: process.env.EMAIL_USER, // Email đăng nhập Brevo
+    pass: process.env.EMAIL_PASS  // SMTP Key của Brevo
   },
-  // --- CẤU HÌNH FIX LỖI MẠNG ---
+  // Cấu hình mạng để tránh lỗi Timeout
   tls: {
-    ciphers: 'SSLv3', // Hỗ trợ các thuật toán mã hóa cũ nếu cần
-    rejectUnauthorized: false // Bỏ qua lỗi chứng chỉ (quan trọng trên Render)
+    rejectUnauthorized: false
   },
-  family: 4, // Ép buộc sử dụng IPv4 (Quan trọng!)
-  // -----------------------------
+  // Debug
   debug: true,
   logger: true,
-  connectionTimeout: 30000,
-  greetingTimeout: 30000,
-  socketTimeout: 30000
+  connectionTimeout: 30000
 });
 
 // Kiểm tra kết nối ngay khi khởi động
@@ -128,35 +125,26 @@ const getOTPEmailTemplate = (otp, userName) => {
 
 // Send OTP email
 const sendOTPEmail = async (email, userName) => {
-  console.log(`🚀 Bắt đầu quy trình gửi email đến: ${email}`);
+  console.log(`🚀 Bắt đầu gửi email qua Brevo đến: ${email}`);
   try {
     const otp = generateOTP();
-
     const mailOptions = {
       from: {
         name: 'PentaPulse Health',
-        address: 'shopthinhtan@gmail.com'
+        address: process.env.EMAIL_USER // Email người gửi (phải trùng với email đăng ký Brevo)
       },
       to: email,
       subject: '🔐 Mã xác thực OTP - PentaPulse Health',
       html: getOTPEmailTemplate(otp, userName)
     };
 
-    console.log('📨 Đang gọi transporter.sendMail...');
     const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Email sent successfully. MessageID:', info.messageId);
+    console.log('✅ Gửi thành công! MessageID:', info.messageId);
 
-    return {
-      success: true,
-      otp: otp, // Return OTP to store in database/session
-      messageId: info.messageId
-    };
+    return { success: true, otp: otp, messageId: info.messageId };
   } catch (error) {
-    console.error('❌ LỖI CHI TIẾT KHI GỬI MAIL:', error);
-    return {
-      success: false,
-      error: error.message
-    };
+    console.error('❌ LỖI GỬI EMAIL:', error);
+    return { success: false, error: error.message };
   }
 };
 

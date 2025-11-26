@@ -185,10 +185,12 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
+            // Header hiển thị chỉ số lớn (Giữ nguyên)
             Text(widget.data['value'] ?? '--', style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: color)),
             Text(unit, style: TextStyle(fontSize: 18, color: Colors.grey)), 
             SizedBox(height: 32),
 
+            // Filter Buttons (Giữ nguyên logic, chỉ chỉnh nhẹ UI nếu cần)
             Container(
               padding: EdgeInsets.all(4),
               decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12)),
@@ -202,13 +204,14 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
                         setState(() => _selectedFilter = filter);
                         _loadChartData();
                       },
-                      child: Container(
+                      child: AnimatedContainer( // Dùng AnimatedContainer cho mượt
+                        duration: Duration(milliseconds: 200),
                         padding: EdgeInsets.symmetric(vertical: 8),
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           color: isSelected ? Colors.white : Colors.transparent,
                           borderRadius: BorderRadius.circular(8),
-                          boxShadow: isSelected ? [BoxShadow(color: Colors.black12, blurRadius: 4)] : [],
+                          boxShadow: isSelected ? [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))] : [],
                         ),
                         child: Text(filter, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, color: isSelected ? Colors.black : Colors.grey)),
                       ),
@@ -219,6 +222,7 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
             ),
             SizedBox(height: 40),
 
+            // PHẦN BIỂU ĐỒ ĐÃ ĐƯỢC TỐI ƯU
             Expanded(
               child: _isLoading 
                 ? Center(child: CircularProgressIndicator())
@@ -228,14 +232,21 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
                       padding: const EdgeInsets.only(right: 16.0, bottom: 10.0),
                       child: LineChart(
                         LineChartData(
+                          // 1. Tối ưu Grid: Nét đứt mờ
                           gridData: FlGridData(
                             show: true,
                             drawVerticalLine: false,
-                            horizontalInterval: (_maxY - _minY) / 5,
+                            horizontalInterval: (_maxY - _minY) / 4, // Chia làm 4 khoảng cho thoáng
                             getDrawingHorizontalLine: (value) {
-                              return FlLine(color: Colors.grey[200], strokeWidth: 1);
+                              return FlLine(
+                                color: Colors.grey[200], 
+                                strokeWidth: 1,
+                                dashArray: [5, 5], // Tạo nét đứt
+                              );
                             },
                           ),
+                          
+                          // 2. Tối ưu Axis Title: Font chữ nhỏ, gọn
                           titlesData: FlTitlesData(
                             show: true,
                             rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -244,10 +255,12 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
                               sideTitles: SideTitles(
                                 showTitles: true,
                                 reservedSize: 40,
+                                interval: (_maxY - _minY) / 4, // Khớp với grid
                                 getTitlesWidget: (value, meta) {
+                                  if (value == _minY || value == _maxY) return Container(); // Ẩn số min/max sát lề
                                   return Text(
                                     value.toInt().toString(),
-                                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                                    style: TextStyle(color: Colors.grey[400], fontSize: 10, fontWeight: FontWeight.w500),
                                   );
                                 },
                               ),
@@ -256,56 +269,99 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
                               sideTitles: SideTitles(
                                 showTitles: true,
                                 reservedSize: 30,
+                                // Logic chia khoảng hiển thị ngày tháng thông minh hơn
                                 interval: _chartData.length > 1 
-                                    ? ((_chartData.last.x - _chartData.first.x) / 4).abs().clamp(1.0, double.infinity)
+                                    ? ((_chartData.last.x - _chartData.first.x) / 3).abs().clamp(1.0, double.infinity) // Chỉ hiện khoảng 4 mốc thời gian
                                     : 1.0,
                                 getTitlesWidget: (value, meta) {
-                                  if (_chartData.isEmpty || value < _chartData.first.x || value > _chartData.last.x) return Container();
+                                  if (_chartData.isEmpty) return Container();
+                                  // Tránh hiển thị label quá sát lề phải
+                                  if (value >= _chartData.last.x) return Padding(padding: EdgeInsets.only(right: 8.0), child: Text(_formatTime(value), style: TextStyle(color: Colors.grey, fontSize: 10)));
+                                  
                                   return Padding(
                                     padding: const EdgeInsets.only(top: 8.0),
                                     child: Text(
                                       _formatTime(value),
-                                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                                      style: TextStyle(color: Colors.grey[500], fontSize: 10, fontWeight: FontWeight.w500),
                                     ),
                                   );
                                 },
                               ),
                             ),
                           ),
+                          
                           borderData: FlBorderData(show: false),
                           minY: _minY,
                           maxY: _maxY,
+                          
+                          // 3. Tối ưu tương tác chạm (Touch Interaction)
                           lineTouchData: LineTouchData(
                             touchTooltipData: LineTouchTooltipData(
-                              getTooltipColor: (touchedSpot) => Colors.black87,
+                              fitInsideHorizontally: true, // Tự động căn chỉnh để không bị tràn màn hình
+                              tooltipRoundedRadius: 8,
+                              tooltipPadding: EdgeInsets.all(8),
+                              tooltipMargin: 10,
+                              getTooltipColor: (touchedSpot) => Colors.white, // Nền trắng
                               getTooltipItems: (touchedSpots) {
                                 return touchedSpots.map((LineBarSpot touchedSpot) {
-                                  final textStyle = TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  );
                                   return LineTooltipItem(
-                                    '${touchedSpot.y.round()} $unit\n${_formatTime(touchedSpot.x)}',
-                                    textStyle,
+                                    '${touchedSpot.y.round()} $unit\n',
+                                    TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14),
+                                    children: [
+                                      TextSpan(
+                                        text: _formatTime(touchedSpot.x),
+                                        style: TextStyle(color: Colors.grey, fontWeight: FontWeight.normal, fontSize: 12),
+                                      ),
+                                    ],
                                   );
                                 }).toList();
                               },
+                              // Thêm bóng đổ cho tooltip đẹp hơn
                             ),
+                            // Hiển thị đường kẻ dọc và chấm tròn khi chạm
+                            getTouchedSpotIndicator: (LineChartBarData barData, List<int> spotIndexes) {
+                              return spotIndexes.map((spotIndex) {
+                                return TouchedSpotIndicatorData(
+                                  FlLine(color: color.withOpacity(0.5), strokeWidth: 2, dashArray: [5, 5]), // Đường kẻ dọc nét đứt
+                                  FlDotData(
+                                    getDotPainter: (spot, percent, barData, index) {
+                                      return FlDotCirclePainter(
+                                        radius: 6,
+                                        color: Colors.white,
+                                        strokeWidth: 3,
+                                        strokeColor: color, // Viền chấm tròn cùng màu biểu đồ
+                                      );
+                                    },
+                                  ),
+                                );
+                              }).toList();
+                            },
                             handleBuiltInTouches: true,
                           ),
+                          
                           lineBarsData: [
                             LineChartBarData(
                               spots: _chartData,
                               isCurved: true,
-                              gradient: LinearGradient(colors: [color, color.withOpacity(0.7)]),
+                              curveSmoothness: 0.35, // Độ cong vừa phải
+                              preventCurveOverShooting: true, // Tránh đường cong vọt ra khỏi biểu đồ
+                              color: color,
                               barWidth: 3,
                               isStrokeCapRound: true,
+                              
+                              // Ẩn các chấm mặc định, chỉ hiện khi chạm (đã xử lý ở trên)
                               dotData: FlDotData(show: false),
+                              
+                              // Đổ màu gradient mượt mà bên dưới
                               belowBarData: BarAreaData(
                                 show: true,
                                 gradient: LinearGradient(
-                                  colors: [color.withOpacity(0.3), color.withOpacity(0.0)],
+                                  colors: [
+                                    color.withOpacity(0.25),
+                                    color.withOpacity(0.05),
+                                    color.withOpacity(0.0),
+                                  ],
+                                  stops: [0.0, 0.7, 1.0], // Độ đậm nhạt theo chiều dọc
                                   begin: Alignment.topCenter,
                                   end: Alignment.bottomCenter,
                                 ),
@@ -316,8 +372,8 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
                       ),
                     ),
             ),
-             SizedBox(height: 20),
-             Text("Biểu đồ hiển thị xu hướng ${_selectedFilter}", style: TextStyle(color: Colors.grey)),
+            SizedBox(height: 20),
+            Text("Biểu đồ hiển thị xu hướng ${_selectedFilter}", style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
           ],
         ),
       ),
