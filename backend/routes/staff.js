@@ -46,13 +46,24 @@ router.get('/missed-medications', async (req, res) => {
 // Get all patients with their latest health status
 router.get('/patients-health', async (req, res) => {
     try {
-        const patients = await User.find({ role: 'patient' }).select('-password');
+        const patients = await User.find({ role: 'patient' }).select('-password').populate('guardians', 'fullName phoneNumber email');
         const result = [];
 
         for (const patient of patients) {
             // Lấy dữ liệu ĐÃ ĐƯỢC LƯU từ User Model
             // Không cần query HealthMetric để tính lại nữa -> Nhanh hơn và Đồng bộ
+            // [SỬA 2] Logic hiển thị Người giám hộ thông minh hơn
+            let guardianDisplay = 'Không có';
             
+            // Kiểm tra xem có liên kết tài khoản người giám hộ nào không
+            if (patient.guardians && patient.guardians.length > 0) {
+                const g = patient.guardians[0]; // Lấy người giám hộ đầu tiên
+                guardianDisplay = `${g.fullName} - ${g.phoneNumber}`;
+            } else if (patient.guardianPhone) {
+                // Fallback: Nếu không có link, dùng số điện thoại nhập tay (nếu có)
+                guardianDisplay = patient.guardianPhone;
+            }
+
             result.push({
                 id: patient._id,
                 name: patient.fullName || 'Không tên',
@@ -65,7 +76,7 @@ router.get('/patients-health', async (req, res) => {
                 lastUpdate: patient.lastHealthUpdate || patient.createdAt,
                 
                 phoneNumber: patient.phoneNumber,
-                guardianPhone: patient.guardianPhone,
+                guardianPhone: guardianDisplay,
                 email: patient.email // Đảm bảo email được gửi về
             });
         }

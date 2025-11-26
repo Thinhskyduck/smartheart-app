@@ -3,7 +3,7 @@ import 'dart:convert';
 import '../services/api_service.dart';
 import '../services/api_config.dart';
 import 'patient_details_screen.dart';
-
+import 'doctor_profile_screen.dart';
 const Color primaryColor = Color(0xFF2260FF);
 
 enum AIStatus { danger, warning, stable }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-
+import 'doctor_profile_screen.dart';
 const Color primaryColor = Color(0xFF2260FF);
 
 class DoctorProfileScreen extends StatelessWidget {
