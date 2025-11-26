@@ -23,6 +23,10 @@ class ApiConfig {
   
   static String get userProfile => '$BASE_URL$API_VERSION/user/profile';
   static String get userLinkGuardian => '$BASE_URL$API_VERSION/user/link-guardian';
+  static String get userGuardians => '$BASE_URL$API_VERSION/user/guardians';
+  static String get userPatients => '$BASE_URL$API_VERSION/user/patients';
+  
+  static String get authValidateCode => '$BASE_URL$API_VERSION/auth/validate-guardian-code';
   
   static String get health => '$BASE_URL$API_VERSION/health';
   static String get healthLatest => '$BASE_URL$API_VERSION/health/latest';

@@ -265,6 +265,23 @@ class AuthService with ChangeNotifier {
     );
     notifyListeners();
   }
+  Future<Map<String, dynamic>> validateGuardianCode(String inputCode) async {
+    try {
+      final response = await apiService.post(
+        ApiConfig.authValidateCode,
+        body: {'guardianCode': inputCode},
+        includeAuth: false, // API này không cần token
+      );
+      
+      if (apiService.isSuccess(response)) {
+        return apiService.parseResponse(response);
+      }
+      return {'valid': false};
+    } catch (e) {
+      debugPrint('Validate code error: $e');
+      return {'valid': false};
+    }
+  }
 }
 
 final authService = AuthService();

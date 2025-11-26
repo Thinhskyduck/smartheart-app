@@ -225,6 +225,89 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isFamilyMember = false;
   bool _isLoading = false;
 
+  Future<void> _handleRegister() async {
+    // 1. Validate cơ bản
+    if (_nameController.text.isEmpty || _emailController.text.isEmpty || 
+        _phoneController.text.isEmpty || _passController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Vui lòng điền đầy đủ thông tin"), backgroundColor: Colors.red)
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    // 2. [QUAN TRỌNG] Nếu là Người giám hộ -> Validate Code trước!
+    if (_isFamilyMember) {
+      String code = _codeController.text.trim();
+      if (code.isEmpty) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Vui lòng nhập mã liên kết của Bệnh nhân"), backgroundColor: Colors.red)
+        );
+        return;
+      }
+
+      // Gọi API kiểm tra mã
+      final result = await authService.validateGuardianCode(code);
+      if (result['valid'] != true) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Mã liên kết không hợp lệ hoặc không tồn tại"), backgroundColor: Colors.red)
+        );
+        return; // Dừng lại, không gửi OTP
+      } else {
+        // Mã đúng -> Hiện thông báo nhỏ xác nhận tên bệnh nhân (Optional)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Đã tìm thấy bệnh nhân: ${result['patientName']}"), backgroundColor: Colors.green)
+        );
+      }
+    }
+
+    // 3. Gửi OTP (Chỉ chạy xuống đây nếu các bước trên OK)
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.BASE_URL}/api/auth/send-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'email': _emailController.text,
+          'fullName': _nameController.text,
+        }),
+      );
+
+      setState(() => _isLoading = false);
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Mã OTP đã được gửi đến email!"), backgroundColor: Colors.green)
+        );
+        Navigator.push(
+          context, 
+          MaterialPageRoute(
+            builder: (context) => OtpScreen(
+              email: _emailController.text,
+              phoneNumber: _phoneController.text,
+              password: _passController.text,
+              fullName: _nameController.text,
+              isFamilyMember: _isFamilyMember,
+              guardianCode: _codeController.text, // Truyền mã đã validate sang
+            )
+          )
+        );
+      } else {
+        final error = json.decode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error['msg'] ?? 'Lỗi gửi OTP'), backgroundColor: Colors.red)
+        );
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Lỗi kết nối: $e"), backgroundColor: Colors.red)
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -271,72 +354,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             
             if (_isFamilyMember)
-              TextField(
-                controller: _codeController,
-                decoration: InputDecoration(
-                  labelText: "Nhập mã liên kết của Bệnh nhân",
-                  hintText: "Ví dụ: 123456",
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  filled: true,
-                  fillColor: Colors.orange[50]
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: TextField(
+                  controller: _codeController,
+                  decoration: InputDecoration(
+                    labelText: "Mã liên kết của Bệnh nhân *",
+                    hintText: "Nhập mã 6 số (VD: 123456)",
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor: Colors.orange[50],
+                    prefixIcon: Icon(Icons.vpn_key, color: Colors.orange),
+                  ),
                 ),
               ),
             
             SizedBox(height: 24),
             ElevatedButton(
-              onPressed: _isLoading ? null : () async {
-                if (_nameController.text.isEmpty || _emailController.text.isEmpty || 
-                    _phoneController.text.isEmpty || _passController.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Vui lòng điền đầy đủ thông tin"), backgroundColor: Colors.red)
-                  );
-                  return;
-                }
-
-                setState(() => _isLoading = true);
-                
-                try {
-                  final response = await http.post(
-                    Uri.parse('${ApiConfig.BASE_URL}/api/auth/send-otp'),
-                    headers: {'Content-Type': 'application/json'},
-                    body: json.encode({
-                      'email': _emailController.text,
-                      'fullName': _nameController.text,
-                    }),
-                  );
-
-                  setState(() => _isLoading = false);
-
-                  if (response.statusCode == 200) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("Mã OTP đã được gửi đến email của bạn!"), backgroundColor: Colors.green)
-                    );
-                    Navigator.push(
-                      context, 
-                      MaterialPageRoute(
-                        builder: (context) => OtpScreen(
-                          email: _emailController.text,
-                          phoneNumber: _phoneController.text,
-                          password: _passController.text,
-                          fullName: _nameController.text,
-                          isFamilyMember: _isFamilyMember,
-                          guardianCode: _codeController.text,
-                        )
-                      )
-                    );
-                  } else {
-                    final error = json.decode(response.body);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(error['msg'] ?? 'Lỗi gửi OTP'), backgroundColor: Colors.red)
-                    );
-                  }
-                } catch (e) {
-                  setState(() => _isLoading = false);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Lỗi kết nối: $e"), backgroundColor: Colors.red)
-                  );
-                }
-              },
+              onPressed: _isLoading ? null : _handleRegister, // Gọi hàm mới
               child: _isLoading 
                 ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                 : Text("Gửi mã OTP"),
@@ -346,6 +381,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     );
   }
+
+  
 }
 
 // --- MÀN HÌNH OTP ---

@@ -10,7 +10,6 @@ import 'permissions_screen.dart';
 import 'chat_screen.dart';
 import 'faq_screen.dart';
 import 'ai_learning_screen.dart';
-import 'role_selection_screen.dart';
 import 'doctor/doctor_dashboard_screen.dart';
 import 'services/notification_service.dart';
 import 'services/auth_service.dart';
@@ -61,7 +60,6 @@ class MyApp extends StatelessWidget {
         '/chat': (context) => ChatScreen(),
         '/faq': (context) => FaqScreen(),
         '/ai-learning': (context) => AiLearningScreen(),
-        '/role-selection': (context) => RoleSelectionScreen(),
         '/doctor-dashboard': (context) => DoctorDashboardScreen(),
         '/onboarding': (context) => OnboardingScreen(),
       },
