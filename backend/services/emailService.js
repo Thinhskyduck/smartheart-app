@@ -1,44 +1,15 @@
 // services/emailService.js
-const nodemailer = require('nodemailer');
-
-// Email configuration với DEBUG
-const transporter = nodemailer.createTransport({
-  // Thay đổi Host sang Brevo
-  host: 'smtp-relay.brevo.com', 
-  port: 2525, 
-  secure: false, // Brevo dùng STARTTLS ở cổng 587
-  auth: {
-    user: process.env.EMAIL_USER, // Email đăng nhập Brevo
-    pass: process.env.EMAIL_PASS  // SMTP Key của Brevo
-  },
-  // Cấu hình mạng để tránh lỗi Timeout
-  tls: {
-    rejectUnauthorized: false
-  },
-  // Debug
-  family: 4,
-  debug: true,
-  logger: true,
-  connectionTimeout: 30000
-});
-
-// Kiểm tra kết nối ngay khi khởi động
-transporter.verify(function (error, success) {
-  if (error) {
-    console.error('🔴 Lỗi kết nối SMTP ngay khi khởi động:', error);
-  } else {
-    console.log('🟢 Server đã sẵn sàng gửi email');
-  }
-});
+require('dotenv').config();
+const axios = require('axios'); // Nhớ chạy: npm install axios
 
 // Generate 6-digit OTP
 const generateOTP = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+    return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Beautiful HTML email template
+// === GIỮ NGUYÊN FORMAT HTML CŨ CỦA BẠN ===
 const getOTPEmailTemplate = (otp, userName) => {
-  return `
+    return `
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -107,11 +78,6 @@ const getOTPEmailTemplate = (otp, userName) => {
               <p style="margin: 0; color: #aaaaaa; font-size: 12px;">
                 © 2025 PentaPulse Health. All rights reserved.
               </p>
-              <div style="margin-top: 15px;">
-                <a href="#" style="color: #2260FF; text-decoration: none; margin: 0 10px; font-size: 12px;">Chính sách bảo mật</a>
-                <span style="color: #cccccc;">|</span>
-                <a href="#" style="color: #2260FF; text-decoration: none; margin: 0 10px; font-size: 12px;">Điều khoản sử dụng</a>
-              </div>
             </td>
           </tr>
           
@@ -124,49 +90,76 @@ const getOTPEmailTemplate = (otp, userName) => {
   `;
 };
 
-// Send OTP email
+// Send OTP email VIA API
 const sendOTPEmail = async (email, userName) => {
-  console.log(`🚀 Bắt đầu gửi email qua Brevo đến: ${email}`);
-  try {
+    console.log(`🚀 [API] Đang chuẩn bị gửi email đến: ${email}`);
+    
     const otp = generateOTP();
-    const mailOptions = {
-      from: {
-        name: 'PentaPulse Health',
-        address: process.env.EMAIL_USER // Email người gửi (phải trùng với email đăng ký Brevo)
-      },
-      to: email,
-      subject: '🔐 Mã xác thực OTP - PentaPulse Health',
-      html: getOTPEmailTemplate(otp, userName)
+    const url = 'https://api.brevo.com/v3/smtp/email';
+    const apiKey = process.env.EMAIL_PASS; // Lấy API Key từ biến môi trường
+
+    // Cấu trúc data theo tài liệu Brevo API
+    const data = {
+        sender: {
+            name: 'PentaPulse Health',
+            email: process.env.EMAIL_USER // Email đã verify trong Brevo (shopthinhtan@gmail.com)
+        },
+        to: [
+            {
+                email: email,
+                name: userName
+            }
+        ],
+        subject: '🔐 Mã xác thực OTP - PentaPulse Health',
+        htmlContent: getOTPEmailTemplate(otp, userName) // Sử dụng lại template cũ
     };
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Gửi thành công! MessageID:', info.messageId);
+    try {
+        const response = await axios.post(url, data, {
+            headers: {
+                'accept': 'application/json',
+                'api-key': apiKey,
+                'content-type': 'application/json'
+            }
+        });
 
-    return { success: true, otp: otp, messageId: info.messageId };
-  } catch (error) {
-    console.error('❌ LỖI GỬI EMAIL:', error);
-    return { success: false, error: error.message };
-  }
+        console.log('✅ [API] Gửi thành công! MessageID:', response.data.messageId);
+        
+        return {
+            success: true,
+            otp: otp,
+            messageId: response.data.messageId
+        };
+    } catch (error) {
+        // Log chi tiết lỗi từ Brevo trả về để dễ debug
+        const errorDetail = error.response ? error.response.data : error.message;
+        console.error('❌ [API] Lỗi gửi mail:', JSON.stringify(errorDetail, null, 2));
+        
+        return {
+            success: false,
+            error: errorDetail
+        };
+    }
 };
 
-// Verify OTP (compare with stored OTP)
+// Verify OTP logic (giữ nguyên)
 const verifyOTP = (inputOTP, storedOTP, timestamp) => {
-  const TEN_MINUTES = 10 * 60 * 1000; // 10 minutes in milliseconds
-  const now = Date.now();
+    const TEN_MINUTES = 10 * 60 * 1000; 
+    const now = Date.now();
 
-  if (now - timestamp > TEN_MINUTES) {
-    return { valid: false, message: 'Mã OTP đã hết hạn' };
-  }
+    if (now - timestamp > TEN_MINUTES) {
+        return { valid: false, message: 'Mã OTP đã hết hạn' };
+    }
 
-  if (inputOTP === storedOTP) {
-    return { valid: true, message: 'Xác thực thành công' };
-  }
+    if (inputOTP === storedOTP) {
+        return { valid: true, message: 'Xác thực thành công' };
+    }
 
-  return { valid: false, message: 'Mã OTP không chính xác' };
+    return { valid: false, message: 'Mã OTP không chính xác' };
 };
 
 module.exports = {
-  sendOTPEmail,
-  verifyOTP,
-  generateOTP
+    sendOTPEmail,
+    verifyOTP,
+    generateOTP
 };
