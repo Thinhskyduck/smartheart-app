@@ -41,6 +41,14 @@ const UserSchema = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now
+    },
+    usagePurpose: {
+        type: String,
+        enum: ['diagnosed', 'monitoring']
+    },
+    heartFailureStage: {
+        type: String,
+        enum: ['stage1', 'stage2']
     }
 });
 

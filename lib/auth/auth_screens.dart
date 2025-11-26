@@ -21,24 +21,34 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _handleLogin() async {
     setState(() => _isLoading = true);
+    
+    // Giả lập delay
     await Future.delayed(Duration(seconds: 1));
-    bool success = await authService.login(_phoneController.text, _passController.text);
-    setState(() => _isLoading = false);
 
-    if (success) {
-      var cameraStatus = await Permission.camera.status;
-      
-      if (cameraStatus.isGranted) {
-         if (authService.currentUser?.role == UserRole.doctor) {
-           Navigator.pushReplacementNamed(context, '/doctor-dashboard');
-         } else {
-           Navigator.pushReplacementNamed(context, '/home');
-         }
+    try {
+      // Gọi service đăng nhập
+      bool success = await authService.login(_phoneController.text, _passController.text);
+
+      setState(() => _isLoading = false);
+
+      if (success) {
+        // --- SỬA LỖI TẠI ĐÂY ---
+        // Chuyển hướng về '/home' vì trong main.dart bạn không khai báo '/'
+        Navigator.pushReplacementNamed(context, '/home'); 
       } else {
-         Navigator.pushReplacementNamed(context, '/permissions');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Đăng nhập thất bại. Vui lòng kiểm tra lại."), backgroundColor: Colors.red)
+          );
+        }
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Đăng nhập thất bại. Vui lòng kiểm tra lại."), backgroundColor: Colors.red));
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Lỗi hệ thống: $e"), backgroundColor: Colors.red)
+        );
+      }
     }
   }
 
@@ -57,6 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Image.asset(
                   'assets/images/app_logo.png',
                   height: 120,
+                  // Fallback nếu không có ảnh
                   errorBuilder: (context, error, stackTrace) => Icon(Icons.health_and_safety, size: 100, color: primaryColor),
                 ),
               ),

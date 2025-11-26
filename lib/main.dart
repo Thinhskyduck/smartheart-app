@@ -5,6 +5,7 @@ import 'history_screen.dart';
 import 'medication_screen.dart';
 import 'profile_screen.dart';
 import 'auth/auth_screens.dart';
+import 'auth/onboarding_screen.dart';
 import 'permissions_screen.dart';
 import 'chat_screen.dart';
 import 'faq_screen.dart';
@@ -62,7 +63,7 @@ class MyApp extends StatelessWidget {
         '/ai-learning': (context) => AiLearningScreen(),
         '/role-selection': (context) => RoleSelectionScreen(),
         '/doctor-dashboard': (context) => DoctorDashboardScreen(),
-        '/onboarding': (context) => WelcomeScreen(),
+        '/onboarding': (context) => OnboardingScreen(),
       },
     );
   }

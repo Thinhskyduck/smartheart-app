@@ -1,6 +1,6 @@
-// Tên file: lib/alert_dialogs.dart
 import 'package:flutter/material.dart';
 import 'package:startup_pharmacy/services/notification_service.dart'; // Đảm bảo đường dẫn import đúng với dự án của bạn
+import 'package:vibration/vibration.dart';
 
 // Mã màu chính của bạn
 const Color primaryColor = Color(0xFF2260FF);
@@ -12,81 +12,95 @@ void showDangerAlert(BuildContext context) {
     title: "⚠️ NGUY HIỂM: SpO2 Thấp",
     body: "Chỉ số SpO2 của bạn giảm xuống 89%. Cần hành động ngay!",
   );
+  
+  // Kích hoạt rung liên tục (pattern: chờ 500ms, rung 1000ms, lặp lại từ index 0)
+  Vibration.vibrate(pattern: [500, 1000, 500, 1000], repeat: 0);
   // ==================================================
 
   showDialog(
     context: context,
     barrierDismissible: false, // Bắt buộc người dùng phải tương tác (không bấm ra ngoài được)
     builder: (BuildContext context) {
-      return Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
-        child: Container(
-          padding: EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20.0),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min, // Cực kỳ quan trọng để dialog không chiếm hết màn hình
-            children: [
-              // Icon
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: Colors.red[100],
-                  shape: BoxShape.circle,
+      // Sử dụng PopScope để chặn nút Back và tắt rung khi thoát
+      return PopScope(
+        canPop: false, 
+        onPopInvoked: (didPop) {
+           if (didPop) {
+             Vibration.cancel();
+           }
+        },
+        child: Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
+          child: Container(
+            padding: EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20.0),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min, // Cực kỳ quan trọng để dialog không chiếm hết màn hình
+              children: [
+                // Icon
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.red[100],
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.dangerous, color: Colors.red[700], size: 45),
                 ),
-                child: Icon(Icons.dangerous, color: Colors.red[700], size: 45),
-              ),
-              SizedBox(height: 20),
-              // Tiêu đề
-              Text(
-                "CẢNH BÁO NGHIÊM TRỌNG",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red[700],
+                SizedBox(height: 20),
+                // Tiêu đề
+                Text(
+                  "CẢNH BÁO NGHIÊM TRỌNG",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red[700],
+                  ),
                 ),
-              ),
-              SizedBox(height: 12),
-              // Nội dung
-              Text(
-                "AI phát hiện chỉ số SpO2 của bạn là 89%.\nĐây là mức nguy hiểm!",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 17, height: 1.5),
-              ),
-              SizedBox(height: 24),
-              // Nút 1: Gọi cấp cứu (Nút chính)
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red[700],
-                  foregroundColor: Colors.white,
-                  minimumSize: Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  textStyle:
-                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                SizedBox(height: 12),
+                // Nội dung
+                Text(
+                  "AI phát hiện chỉ số SpO2 của bạn là 89%.\nĐây là mức nguy hiểm!",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 17, height: 1.5),
                 ),
-                child: Text("Gọi Cấp Cứu 115"),
-                onPressed: () {
-                  // Logic gọi 115 thực tế sẽ đặt ở đây
-                  Navigator.of(context).pop();
-                },
-              ),
-              SizedBox(height: 10),
-              // Nút 2: Đã hiểu (Nút phụ)
-              TextButton(
-                child: Text(
-                  "Đã hiểu",
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                SizedBox(height: 24),
+                // Nút 1: Gọi cấp cứu (Nút chính)
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red[700],
+                    foregroundColor: Colors.white,
+                    minimumSize: Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    textStyle:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  child: Text("Gọi Cấp Cứu 115"),
+                  onPressed: () {
+                    Vibration.cancel(); // Tắt rung
+                    // Logic gọi 115 thực tế sẽ đặt ở đây
+                    Navigator.of(context).pop();
+                  },
                 ),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-            ],
+                SizedBox(height: 10),
+                // Nút 2: Đã hiểu (Nút phụ)
+                TextButton(
+                  child: Text(
+                    "Đã hiểu",
+                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                  ),
+                  onPressed: () {
+                    Vibration.cancel(); // Tắt rung
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       );

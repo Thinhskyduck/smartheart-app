@@ -16,6 +16,8 @@ class UserData {
   UserRole role;
   String? linkedPatientId; // ID bệnh nhân được liên kết (nếu là người nhà)
   String? guardianCode; // Mã liên kết người giám hộ
+  String? usagePurpose;
+  String? heartFailureStage;
 
   UserData({
     required this.id,
@@ -26,6 +28,8 @@ class UserData {
     required this.role,
     this.linkedPatientId,
     this.guardianCode,
+    this.usagePurpose,
+    this.heartFailureStage,
   });
 
   // Parse from API response
@@ -46,6 +50,8 @@ class UserData {
       role: role,
       linkedPatientId: json['linkedPatientId'],
       guardianCode: json['guardianCode'],
+      usagePurpose: json['usagePurpose'],
+      heartFailureStage: json['heartFailureStage'],
     );
   }
 }
@@ -192,6 +198,31 @@ class AuthService with ChangeNotifier {
       return false;
     } catch (e) {
       debugPrint('Update profile error: $e');
+      return false;
+    }
+  }
+
+  // --- UPDATE ONBOARDING DATA ---
+  Future<bool> updateOnboardingData(String usagePurpose, String? heartFailureStage) async {
+    try {
+      final response = await apiService.put(
+        ApiConfig.userProfile,
+        body: {
+          'usagePurpose': usagePurpose,
+          'heartFailureStage': heartFailureStage,
+        },
+      );
+
+      if (apiService.isSuccess(response)) {
+        final userData = apiService.parseResponse(response);
+        currentUser = UserData.fromJson(userData);
+        notifyListeners();
+        return true;
+      }
+      
+      return false;
+    } catch (e) {
+      debugPrint('Update onboarding data error: $e');
       return false;
     }
   }

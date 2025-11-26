@@ -1,12 +1,14 @@
 const User = require('../models/User');
 
 exports.updateProfile = async (req, res) => {
-    const { fullName, phoneNumber } = req.body;
+    const { fullName, phoneNumber, usagePurpose, heartFailureStage } = req.body;
 
     // Build object to update
     const userFields = {};
     if (fullName) userFields.fullName = fullName;
     if (phoneNumber) userFields.phoneNumber = phoneNumber;
+    if (usagePurpose) userFields.usagePurpose = usagePurpose;
+    if (heartFailureStage) userFields.heartFailureStage = heartFailureStage;
 
     try {
         let user = await User.findById(req.user.id);
