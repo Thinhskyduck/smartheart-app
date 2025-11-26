@@ -298,7 +298,6 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
                           lineTouchData: LineTouchData(
                             touchTooltipData: LineTouchTooltipData(
                               fitInsideHorizontally: true, // Tự động căn chỉnh để không bị tràn màn hình
-                              tooltipRoundedRadius: 8,
                               tooltipPadding: EdgeInsets.all(8),
                               tooltipMargin: 10,
                               getTooltipColor: (touchedSpot) => Colors.white, // Nền trắng

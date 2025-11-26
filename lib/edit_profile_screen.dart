@@ -19,24 +19,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.initState();
     final user = authService.currentUser;
     if (user != null) {
-      _nameController.text = user.fullName;
-      _phoneController.text = user.phoneNumber;
+      // SỬA: Thêm ?? "" để nếu dữ liệu null thì lấy chuỗi rỗng
+      _nameController.text = user.fullName ?? "";
+      _phoneController.text = user.phoneNumber ?? "";
       _emailController.text = user.email ?? "";
-      _dobController.text = user.yearOfBirth;
+      _dobController.text = user.yearOfBirth ?? "";
     }
   }
 
-  void _saveProfile() {
-    // Cập nhật thông tin qua service
-    authService.updateProfile(
+  void _saveProfile() async {
+    // Sửa thành async để đợi kết quả từ server
+    bool success = await authService.updateProfile(
       _nameController.text,
       _phoneController.text,
       _emailController.text,
       _dobController.text
     );
     
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Đã lưu thay đổi!"), backgroundColor: Colors.green));
-    Navigator.pop(context);
+    if (mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Đã lưu thay đổi!"), backgroundColor: Colors.green));
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi khi lưu hồ sơ"), backgroundColor: Colors.red));
+      }
+    }
   }
 
   @override

@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/api_config.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:permission_handler/permission_handler.dart'; // Import để check quyền
 
 const Color primaryColor = Color(0xFF2260FF);
 
@@ -26,20 +27,21 @@ class _LoginScreenState extends State<LoginScreen> {
     await Future.delayed(Duration(seconds: 1));
 
     try {
-      // Gọi service đăng nhập
+      // 1. Gọi service đăng nhập
       bool success = await authService.login(_phoneController.text, _passController.text);
-
+      
       setState(() => _isLoading = false);
 
       if (success) {
-        // --- SỬA LỖI TẠI ĐÂY ---
-        // Chuyển hướng về '/home' vì trong main.dart bạn không khai báo '/'
-        Navigator.pushReplacementNamed(context, '/home'); 
+        if (mounted) {
+           // 2. KIỂM TRA QUYỀN TRƯỚC KHI ĐIỀU HƯỚNG
+           await _checkPermissionsAndNavigate();
+        }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Đăng nhập thất bại. Vui lòng kiểm tra lại."), backgroundColor: Colors.red)
-          );
+           ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(content: Text("Đăng nhập thất bại. Kiểm tra lại thông tin."), backgroundColor: Colors.red)
+           );
         }
       }
     } catch (e) {
@@ -48,6 +50,40 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text("Lỗi hệ thống: $e"), backgroundColor: Colors.red)
         );
+      }
+    }
+  }
+
+  // --- HÀM LOGIC ĐIỀU HƯỚNG MỚI ---
+  Future<void> _checkPermissionsAndNavigate() async {
+    // Kiểm tra các quyền quan trọng
+    var cameraStatus = await Permission.camera.status;
+    var storageStatus = await Permission.storage.status;
+    var photosStatus = await Permission.photos.status; // Android 13+
+
+    // Logic: Nếu TẤT CẢ quyền đã được cấp -> Bỏ qua màn Permissions
+    bool isAllGranted = cameraStatus.isGranted && (storageStatus.isGranted || photosStatus.isGranted);
+
+    if (!isAllGranted) {
+      // Nếu chưa đủ quyền -> Vào màn hình xin quyền
+      Navigator.pushReplacementNamed(context, '/permissions');
+    } else {
+      // Nếu đã đủ quyền -> Kiểm tra Onboarding và Role để đi tiếp
+      final user = authService.currentUser;
+      
+      if (user?.role == UserRole.doctor) {
+        Navigator.pushReplacementNamed(context, '/doctor-dashboard');
+      } else if (user?.role == UserRole.patient) {
+        if (user!.isOnboardingComplete) {
+           // Đã xong onboarding -> Vào Home (hoặc AI Learning)
+           Navigator.pushReplacementNamed(context, '/home'); // Sửa thành /ai-learning nếu muốn
+        } else {
+           // Chưa xong -> Vào Onboarding
+           Navigator.pushReplacementNamed(context, '/onboarding');
+        }
+      } else {
+        // Người nhà -> Vào Home
+        Navigator.pushReplacementNamed(context, '/home');
       }
     }
   }

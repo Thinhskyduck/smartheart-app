@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'services/auth_service.dart'; // Import Auth Service để check Role
+import 'services/auth_service.dart'; // Import Auth Service
 import 'services/health_service.dart';
 
 const Color primaryColor = Color(0xFF2260FF);
@@ -18,19 +18,42 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     _checkPermissions();
   }
 
-  // Check if all permissions are already granted
+  // Kiểm tra quyền (chỉ để log hoặc xử lý logic ngầm nếu cần)
   Future<void> _checkPermissions() async {
-    // Check Health
-    // Note: health package doesn't have a simple "isGranted" for all types without requesting.
-    // But we can check system permissions first.
+    await Permission.camera.status;
+    await Permission.storage.status;
+    await Permission.photos.status;
+  }
+
+  // Hàm chuyển màn hình dựa trên Role người dùng
+  void _navigateNext() {
+    final user = authService.currentUser;
     
-    var cameraStatus = await Permission.camera.status;
-    var storageStatus = await Permission.storage.status; // For Android < 13
-    var photosStatus = await Permission.photos.status; // For Android 13+
-    
-    // If system permissions are granted, we might still need Health permissions.
-    // But if we want to skip automatically, we need to be sure.
-    // For now, let's just let the user click "Allow" and if already granted, it will be fast.
+    // Safety check
+    if (user == null) {
+      Navigator.pushReplacementNamed(context, '/login');
+      return;
+    }
+
+    if (user.role == UserRole.doctor) {
+      // 1. Bác sĩ -> Dashboard bác sĩ
+      Navigator.pushReplacementNamed(context, '/doctor-dashboard');
+      
+    } else if (user.role == UserRole.patient) {
+      // 2. Bệnh nhân
+      if (user.isOnboardingComplete) {
+        // Đã xong Onboarding -> Vào màn AI Learning (hoặc Home tùy bạn)
+        // Theo logic bạn mô tả: Onboarding xong -> AI Learning -> Home
+        Navigator.pushReplacementNamed(context, '/ai-learning'); 
+      } else {
+        // Chưa xong Onboarding -> Vào màn Onboarding
+        Navigator.pushReplacementNamed(context, '/onboarding');
+      }
+      
+    } else {
+      // 3. Người nhà (Family Member) -> Home
+      Navigator.pushReplacementNamed(context, '/home');
+    }
   }
 
   Future<void> _requestAllPermissions() async {
@@ -38,7 +61,6 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     bool healthGranted = await healthService.requestPermissions();
     
     // 2. Request Camera & Storage
-    // Android 13+ uses photos/videos/audio permissions instead of READ_EXTERNAL_STORAGE
     Map<Permission, PermissionStatus> statuses = await [
       Permission.camera,
       Permission.storage,
@@ -47,30 +69,28 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     
     bool cameraGranted = statuses[Permission.camera]!.isGranted;
     
-    // Navigate regardless of result, but show message if failed
+    // Logic: Nếu cấp đủ quyền hoặc người dùng bấm cho phép thì đi tiếp
     if (healthGranted && cameraGranted) {
        _navigateNext();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Một số quyền chưa được cấp. Bạn có thể cấp lại trong Cài đặt."), backgroundColor: Colors.orange),
-      );
-      _navigateNext();
+      // Hiện thông báo nhưng vẫn cho đi tiếp (hoặc chặn tùy logic của bạn)
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Một số quyền chưa được cấp. Ứng dụng có thể không hoạt động hoàn hảo."),
+            backgroundColor: Colors.orange,
+          )
+        );
+        // Vẫn cho qua trang chủ sau 1 giây
+        Future.delayed(Duration(seconds: 1), _navigateNext);
+      }
     }
   }
 
-  void _navigateNext() {
-    final user = authService.currentUser;
-    if (user != null && user.role == UserRole.patient) {
-      Navigator.pushNamedAndRemoveUntil(context, '/ai-learning', (route) => false);
-    } else {
-      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
-    }
-  }
-
+  // --- PHẦN GIAO DIỆN (BUILD) PHẢI TÁCH RIÊNG RA KHỎI LOGIC ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
