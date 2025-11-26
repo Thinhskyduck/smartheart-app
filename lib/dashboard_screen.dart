@@ -59,15 +59,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
     
     if (mounted) {
       setState(() {
-        _aiStatus = aiResult ?? "xanh"; // Mặc định xanh nếu lỗi
+        _aiStatus = aiResult ?? "xanh"; 
       });
 
-      // Kích hoạt cảnh báo pop-up nếu cần thiết
+      // --- CODE MỚI: ĐỒNG BỘ TRẠNG THÁI LÊN SERVER ---
+      String serverStatus = 'stable';
+      String alertMsg = 'Các chỉ số ổn định';
+      String? metric;
+      String? val;
+
       if (_aiStatus == "đỏ") {
+        serverStatus = 'danger';
+        alertMsg = 'AI Cảnh báo nguy hiểm';
+        // Logic giả lập lấy chỉ số gây báo động để gửi lên (hoặc lấy từ AI nếu AI trả về chi tiết)
+        // Ở đây tạm lấy ví dụ
+        if ((data['hr_raw'] ?? 0) > 100) { metric = 'HR'; val = "${data['hr_raw']} bpm"; }
+        else if ((data['spo2_raw'] ?? 99) < 95) { metric = 'SpO2'; val = "${data['spo2_raw']}%"; }
+        else if ((data['hrv_raw'] ?? 50) < 30) { metric = 'HRV'; val = "${data['hrv_raw']} ms"; }
+        
         Future.delayed(Duration(seconds: 1), () => showDangerAlert(context));
       } else if (_aiStatus == "vàng") {
+        serverStatus = 'warning';
+        alertMsg = 'AI Cảnh báo cần chú ý';
         Future.delayed(Duration(seconds: 1), () => showWarningAlert(context));
       }
+
+      // Gọi API đồng bộ ngay lập tức
+      await userService.syncHealthStatus(
+        status: serverStatus,
+        alert: alertMsg,
+        metric: metric,
+        value: val
+      );
+      // ------------------------------------------------
     }
   }
 

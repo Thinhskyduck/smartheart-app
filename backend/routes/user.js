@@ -22,5 +22,6 @@ router.get('/guardians', auth, userController.getGuardians);
 // @desc    Get list of patients for current guardian/doctor
 // @access  Private
 router.get('/patients', auth, userController.getPatients);
+router.put('/health-status', auth, userController.updateHealthStatus);
 
 module.exports = router;

@@ -49,7 +49,13 @@ const UserSchema = new mongoose.Schema({
     heartFailureStage: {
         type: String,
         enum: ['stage1', 'stage2']
-    }
+    },
+    // --- THÊM CÁC TRƯỜNG NÀY ĐỂ ĐỒNG BỘ AI ---
+    currentHealthStatus: { type: String, enum: ['stable', 'warning', 'danger'], default: 'stable' },
+    lastAiAlert: { type: String, default: '' },       // Nội dung cảnh báo (VD: Nhịp tim cao)
+    criticalMetric: { type: String, default: '' },    // Chỉ số gây báo động (VD: HR)
+    criticalValue: { type: String, default: '' },     // Giá trị cụ thể (VD: 120 bpm)
+    lastHealthUpdate: { type: Date, default: Date.now }
 });
 
 module.exports = mongoose.model('User', UserSchema);

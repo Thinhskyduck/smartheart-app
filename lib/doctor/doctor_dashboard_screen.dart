@@ -18,11 +18,13 @@ class Patient {
   final DateTime lastUpdate;
   final String? phoneNumber;
   final String? guardianPhone;
+  final String? email;
 
   Patient({
     required this.id, required this.name, required this.status,
     required this.lastAlert, this.criticalValue, this.criticalMetric,
-    required this.lastUpdate, this.phoneNumber, this.guardianPhone
+    required this.lastUpdate, this.phoneNumber, this.guardianPhone, 
+    this.email
   });
 
   factory Patient.fromJson(Map<String, dynamic> json) {
@@ -40,6 +42,7 @@ class Patient {
       lastUpdate: DateTime.parse(json['lastUpdate']),
       phoneNumber: json['phoneNumber'],
       guardianPhone: json['guardianPhone'],
+      email: json['email'],
     );
   }
 }
@@ -138,6 +141,20 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> with Sing
           IconButton(
             icon: Icon(Icons.refresh, color: primaryColor),
             onPressed: _refreshAll,
+          ),
+          // THÊM NÚT PROFILE Ở ĐÂY
+          Padding(
+            padding: const EdgeInsets.only(right: 12.0),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => DoctorProfileScreen()));
+              },
+              child: CircleAvatar(
+                radius: 18,
+                backgroundColor: primaryColor.withOpacity(0.1),
+                child: Icon(Icons.person, color: primaryColor, size: 20),
+              ),
+            ),
           )
         ],
       ),
@@ -375,18 +392,23 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> with Sing
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () {
-          // Navigate to details with real data structure
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => PatientDetailsScreen(patientData: {
+                'id': patient.id, // ID gốc
+                'status': patient.status == AIStatus.danger ? 'danger' : patient.status == AIStatus.warning ? 'warning' : 'stable',
+                'lastAlert': patient.lastAlert,
+                'lastUpdate': patient.lastUpdate.toIso8601String(),
+                'criticalValue': patient.criticalValue,
+                'criticalMetric': patient.criticalMetric,
                 'user': {
+                  '_id': patient.id,
                   'fullName': patient.name,
                   'phoneNumber': patient.phoneNumber ?? 'N/A',
-                  '_id': patient.id,
                   'guardianPhone': patient.guardianPhone,
+                  'email': patient.email // <--- TRUYỀN EMAIL Ở ĐÂY
                 },
-                'medications': [] // No missed meds for this view
               }),
             ),
           );

@@ -108,7 +108,7 @@ class _MedicationScreenState extends State<MedicationScreen> {
                       padding: EdgeInsets.all(16),
                       children: [
                         _buildSection("Buổi Sáng", medicationService.morningMeds),
-                        _buildSection("Buổi Tối", medicationService.eveningMeds),
+                        _buildSection("Buổi Chiều", medicationService.eveningMeds),
                       ],
                     ),
                   ),

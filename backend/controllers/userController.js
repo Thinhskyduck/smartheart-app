@@ -86,3 +86,22 @@ exports.getPatients = async (req, res) => {
         res.status(500).send('Server error');
     }
 };
+
+// THÊM HÀM NÀY VÀO CUỐI FILE
+exports.updateHealthStatus = async (req, res) => {
+    const { status, alert, metric, value } = req.body;
+
+    try {
+        await User.findByIdAndUpdate(req.user.id, {
+            currentHealthStatus: status,
+            lastAiAlert: alert,
+            criticalMetric: metric,
+            criticalValue: value,
+            lastHealthUpdate: Date.now()
+        });
+        res.json({ msg: 'Health status updated' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+};
