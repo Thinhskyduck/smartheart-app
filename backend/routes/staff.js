@@ -8,17 +8,14 @@ const HealthMetric = require('../models/HealthMetric');
 // Get list of patients who have not taken their medication
 router.get('/missed-medications', async (req, res) => {
     try {
-        // Find medications that are NOT taken
-        // In a real app, we would also check if the time has passed
         const missedMeds = await Medication.find({ isTaken: false })
             .populate('user', 'fullName phoneNumber guardianPhone birthYear')
             .sort({ time: 1 });
 
-        // Group by user
         const patientMap = new Map();
 
         missedMeds.forEach(med => {
-            if (!med.user) return; // Skip if user deleted
+            if (!med.user) return; 
 
             const userId = med.user._id.toString();
 
@@ -49,34 +46,32 @@ router.get('/missed-medications', async (req, res) => {
 // Get all patients with their latest health status
 router.get('/patients-health', async (req, res) => {
     try {
-        // 1. Get all patients
         const patients = await User.find({ role: 'patient' }).select('-password');
 
         const result = [];
 
         for (const patient of patients) {
-            // 2. Get latest metrics for each patient
-            // We want latest SpO2 and Heart Rate for status calculation
             const metrics = await HealthMetric.find({ user: patient._id })
                 .sort({ timestamp: -1 })
-                .limit(20); // Get last 20 to find specific types
+                .limit(50); // Lấy nhiều hơn chút để chắc chắn đủ type
 
-            const latestSpO2 = metrics.find(m => m.type === 'BLOOD_OXYGEN');
-            const latestHR = metrics.find(m => m.type === 'HEART_RATE');
-            const latestHRV = metrics.find(m => m.type === 'HEART_RATE_VARIABILITY_RMSSD');
+            // [SỬA LỖI QUAN TRỌNG TẠI ĐÂY]
+            // App gửi lên là 'spo2', 'hr', 'hrv'... chứ không phải 'BLOOD_OXYGEN'
+            const latestSpO2 = metrics.find(m => m.type === 'spo2');
+            const latestHR = metrics.find(m => m.type === 'hr');
+            const latestHRV = metrics.find(m => m.type === 'hrv'); // Đã thêm HRV
 
-            // 3. Determine Status
             let status = 'stable';
             let lastAlert = 'Các chỉ số ổn định';
             let criticalValue = null;
             let criticalMetric = null;
-            let lastUpdate = patient.createdAt; // Default to created time
+            let lastUpdate = patient.createdAt; 
 
             if (metrics.length > 0) {
                 lastUpdate = metrics[0].timestamp;
             }
 
-            // Simple Logic for Status
+            // --- 1. LOGIC SPO2 ---
             if (latestSpO2) {
                 const spo2Val = parseFloat(latestSpO2.value);
                 if (spo2Val < 90) {
@@ -85,32 +80,58 @@ router.get('/patients-health', async (req, res) => {
                     criticalValue = `${spo2Val}%`;
                     criticalMetric = 'SpO2';
                 } else if (spo2Val < 95) {
-                    status = 'warning';
-                    lastAlert = 'SpO2 thấp';
-                    criticalValue = `${spo2Val}%`;
-                    criticalMetric = 'SpO2';
+                    if (status !== 'danger') { // Ưu tiên danger
+                        status = 'warning';
+                        lastAlert = 'SpO2 thấp';
+                        criticalValue = `${spo2Val}%`;
+                        criticalMetric = 'SpO2';
+                    }
                 }
             }
 
-            if (status !== 'danger' && latestHR) {
+            // --- 2. LOGIC HRV (MỚI THÊM ĐỂ ĐỒNG BỘ AI) ---
+            // AI thường báo đỏ nếu HRV rất thấp (dưới 20-25ms)
+            if (latestHRV) {
+                const hrvVal = parseFloat(latestHRV.value);
+                if (hrvVal < 25) { // Ngưỡng nguy hiểm
+                     status = 'danger';
+                     lastAlert = 'Biến thiên tim (HRV) quá thấp';
+                     criticalValue = `${hrvVal} ms`;
+                     criticalMetric = 'HRV';
+                } else if (hrvVal < 40) {
+                    if (status !== 'danger') {
+                        status = 'warning';
+                        lastAlert = 'Biến thiên tim (HRV) thấp';
+                        criticalValue = `${hrvVal} ms`;
+                        criticalMetric = 'HRV';
+                    }
+                }
+            }
+
+            // --- 3. LOGIC NHỊP TIM (HR) ---
+            if (latestHR) {
                 const hrVal = parseFloat(latestHR.value);
                 if (hrVal > 120 || hrVal < 40) {
-                    status = 'danger';
-                    lastAlert = 'Nhịp tim bất thường';
-                    criticalValue = `${hrVal} bpm`;
-                    criticalMetric = 'HR';
+                    if (status !== 'danger') { // Chỉ ghi đè nếu chưa phải danger do SpO2/HRV
+                        status = 'danger';
+                        lastAlert = 'Nhịp tim bất thường';
+                        criticalValue = `${hrVal} bpm`;
+                        criticalMetric = 'HR';
+                    }
                 } else if (hrVal > 100 || hrVal < 50) {
-                    status = 'warning';
-                    lastAlert = 'Nhịp tim cần chú ý';
-                    criticalValue = `${hrVal} bpm`;
-                    criticalMetric = 'HR';
+                    if (status === 'stable') {
+                        status = 'warning';
+                        lastAlert = 'Nhịp tim cần chú ý';
+                        criticalValue = `${hrVal} bpm`;
+                        criticalMetric = 'HR';
+                    }
                 }
             }
 
             result.push({
                 id: patient._id,
                 name: patient.fullName || 'Không tên',
-                status: status, // stable, warning, danger
+                status: status,
                 lastAlert: lastAlert,
                 criticalValue: criticalValue,
                 criticalMetric: criticalMetric,
@@ -121,7 +142,7 @@ router.get('/patients-health', async (req, res) => {
             });
         }
 
-        // Sort: Danger first, then Warning, then Stable
+        // Sắp xếp: Nguy hiểm lên đầu
         const statusOrder = { 'danger': 0, 'warning': 1, 'stable': 2 };
         result.sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
 
@@ -134,10 +155,8 @@ router.get('/patients-health', async (req, res) => {
 });
 
 // GET /api/staff/patient/:id/medications
-// Lấy danh sách thuốc của một bệnh nhân cụ thể
 router.get('/patient/:id/medications', async (req, res) => {
     try {
-        // Kiểm tra quyền (bác sĩ hoặc giám hộ) - Ở đây tạm bỏ qua middleware check role kỹ
         const medications = await Medication.find({ user: req.params.id }).sort({ time: 1 });
         res.json(medications);
     } catch (err) {
@@ -147,10 +166,8 @@ router.get('/patient/:id/medications', async (req, res) => {
 });
 
 // GET /api/staff/patient/:id/health
-// Lấy lịch sử sức khỏe của một bệnh nhân cụ thể
 router.get('/patient/:id/health', async (req, res) => {
     try {
-        // Lấy toàn bộ lịch sử đo, sắp xếp mới nhất trước
         const metrics = await HealthMetric.find({ user: req.params.id }).sort({ timestamp: -1 });
         res.json(metrics);
     } catch (err) {
