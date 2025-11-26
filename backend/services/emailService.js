@@ -5,7 +5,7 @@ const nodemailer = require('nodemailer');
 const transporter = nodemailer.createTransport({
   // Thay đổi Host sang Brevo
   host: 'smtp-relay.brevo.com', 
-  port: 587, 
+  port: 2525, 
   secure: false, // Brevo dùng STARTTLS ở cổng 587
   auth: {
     user: process.env.EMAIL_USER, // Email đăng nhập Brevo
@@ -16,6 +16,7 @@ const transporter = nodemailer.createTransport({
     rejectUnauthorized: false
   },
   // Debug
+  family: 4,
   debug: true,
   logger: true,
   connectionTimeout: 30000
