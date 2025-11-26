@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:health/health.dart';
-import 'services/health_service.dart';
 import 'package:intl/intl.dart';
+import 'package:shimmer/shimmer.dart';
+
+// Giả định bạn đã có file này export biến healthService
+import 'services/health_service.dart'; 
 
 class MetricDetailScreen extends StatefulWidget {
   final Map<String, dynamic> data;
-  MetricDetailScreen({required this.data});
+  
+  const MetricDetailScreen({Key? key, required this.data}) : super(key: key);
 
   @override
   _MetricDetailScreenState createState() => _MetricDetailScreenState();
@@ -27,62 +31,77 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
   }
 
   Future<void> _loadChartData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
-    DateTime now = DateTime.now();
-    
-    switch (_selectedFilter) {
-      case "24h": _startTime = now.subtract(Duration(hours: 24)); break;
-      case "1W": _startTime = now.subtract(Duration(days: 7)); break;
-      case "1M": _startTime = now.subtract(Duration(days: 30)); break;
-      case "1Y": _startTime = now.subtract(Duration(days: 365)); break;
-      default: _startTime = now.subtract(Duration(hours: 24));
-    }
-
-    HealthDataType? type;
-    String title = widget.data['title'] ?? '';
-    
-    if (title.contains("Nhịp tim")) type = HealthDataType.HEART_RATE;
-    else if (title.contains("Huyết áp")) type = HealthDataType.BLOOD_PRESSURE_SYSTOLIC;
-    else if (title.contains("SpO2")) type = HealthDataType.BLOOD_OXYGEN;
-    else if (title.contains("Cân nặng")) type = HealthDataType.WEIGHT;
-
-    if (type != null) {
-      List<HealthDataPoint> points = await healthService.fetchHistoricalData(type, _startTime, now);
+    try {
+      DateTime now = DateTime.now();
       
-      List<FlSpot> spots = [];
-      double min = 1000;
-      double max = 0;
-
-      for (var p in points) {
-        double val = (p.value as NumericHealthValue).numericValue.toDouble();
-        if (type == HealthDataType.BLOOD_OXYGEN && val <= 1.0) val *= 100;
-        
-        double x = p.dateTo.difference(_startTime).inMinutes.toDouble();
-        
-        spots.add(FlSpot(x, val));
-        
-        if (val < min) min = val;
-        if (val > max) max = val;
+      switch (_selectedFilter) {
+        case "24h": _startTime = now.subtract(const Duration(hours: 24)); break;
+        case "1W": _startTime = now.subtract(const Duration(days: 7)); break;
+        case "1M": _startTime = now.subtract(const Duration(days: 30)); break;
+        case "1Y": _startTime = now.subtract(const Duration(days: 365)); break;
+        default: _startTime = now.subtract(const Duration(hours: 24));
       }
+
+      HealthDataType? type;
+      String title = widget.data['title'] ?? '';
       
-      if (spots.isNotEmpty) {
-         _minY = min - (min * 0.1);
-         _maxY = max + (max * 0.1);
+      if (title.contains("Nhịp tim")) type = HealthDataType.HEART_RATE;
+      else if (title.contains("Huyết áp")) type = HealthDataType.BLOOD_PRESSURE_SYSTOLIC;
+      else if (title.contains("SpO2")) type = HealthDataType.BLOOD_OXYGEN;
+      else if (title.contains("Cân nặng")) type = HealthDataType.WEIGHT;
+
+      if (type != null) {
+        List<HealthDataPoint> points = await healthService.fetchHistoricalData(type, _startTime, now);
+        
+        List<FlSpot> spots = [];
+        double min = 1000;
+        double max = 0;
+
+        for (var p in points) {
+          if (p.value is NumericHealthValue) {
+            double val = (p.value as NumericHealthValue).numericValue.toDouble();
+            if (type == HealthDataType.BLOOD_OXYGEN && val <= 1.0) val *= 100;
+            
+            double x = p.dateTo.difference(_startTime).inMinutes.toDouble();
+            spots.add(FlSpot(x, val));
+            
+            if (val < min) min = val;
+            if (val > max) max = val;
+          }
+        }
+        
+        if (spots.isNotEmpty) {
+           _minY = (min - (min * 0.1)).floorToDouble(); 
+           _maxY = (max + (max * 0.1)).ceilToDouble();
+        } else {
+          _minY = 0;
+          _maxY = 100;
+        }
+
+        spots.sort((a, b) => a.x.compareTo(b.x));
+
+        if (mounted) {
+          setState(() {
+            _chartData = spots;
+            _isLoading = false;
+          });
+        }
       } else {
-        _minY = 0;
-        _maxY = 100;
+        if (mounted) {
+          setState(() {
+            _chartData = [];
+            _isLoading = false;
+          });
+        }
       }
-
-      setState(() {
-        _chartData = spots;
-        _isLoading = false;
-      });
-    } else {
-      setState(() {
-        _chartData = [];
-        _isLoading = false;
-      });
+    } catch (e) {
+      debugPrint("Lỗi tải biểu đồ: $e");
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -97,6 +116,7 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
     }
   }
 
+  // --- DIALOGS (Giữ nguyên) ---
   void _showAddBPDialog() {
     final TextEditingController sysController = TextEditingController();
     final TextEditingController diaController = TextEditingController();
@@ -104,113 +124,74 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text("Nhập chỉ số Huyết áp"),
+        title: const Text("Nhập chỉ số Huyết áp"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: sysController,
               keyboardType: TextInputType.number,
-              decoration: InputDecoration(labelText: "Tâm thu (Systolic) - mmHg"),
+              decoration: const InputDecoration(labelText: "Tâm thu (Systolic) - mmHg"),
             ),
             TextField(
               controller: diaController,
               keyboardType: TextInputType.number,
-              decoration: InputDecoration(labelText: "Tâm trương (Diastolic) - mmHg"),
+              decoration: const InputDecoration(labelText: "Tâm trương (Diastolic) - mmHg"),
             ),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text("Hủy"),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Hủy")),
           ElevatedButton(
             onPressed: () async {
               final sys = sysController.text;
               final dia = diaController.text;
-
-              if (sys.isNotEmpty && dia.isNotEmpty) {
-                // Validate numbers
-                if (int.tryParse(sys) != null && int.tryParse(dia) != null) {
-                  final value = "$sys/$dia";
-                  
-                  // Save to backend ONLY (as requested)
-                  await healthService.syncMetricToBackend('bp', value, 'mmHg');
-                  
+              if (sys.isNotEmpty && dia.isNotEmpty && int.tryParse(sys) != null && int.tryParse(dia) != null) {
+                await healthService.syncMetricToBackend('bp', "$sys/$dia", 'mmHg');
+                if (context.mounted) {
                   Navigator.pop(context);
-                  
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Đã lưu chỉ số huyết áp thành công!")),
-                  );
-
-                  // Reload chart to fetch the new data from backend
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã lưu chỉ số huyết áp thành công!")));
                   _loadChartData();
-                } else {
-                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Vui lòng nhập số hợp lệ")),
-                  );
                 }
               }
             },
-            child: Text("Lưu"),
+            child: const Text("Lưu"),
           ),
         ],
       ),
     );
   }
-  // --- THÊM HÀM NHẬP HRV MỚI ---
+
   void _showAddHRVDialog() {
     final TextEditingController hrvController = TextEditingController();
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text("Nhập chỉ số HRV"),
+        title: const Text("Nhập chỉ số HRV"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text("Nhập chỉ số Biến thiên nhịp tim (RMSSD - ms).", style: TextStyle(fontSize: 13, color: Colors.grey)),
-            SizedBox(height: 10),
             TextField(
               controller: hrvController,
               keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: "Chỉ số HRV (ms)", 
-                border: OutlineInputBorder(),
-                hintText: "VD: 45"
-              ),
+              decoration: const InputDecoration(labelText: "Chỉ số HRV (ms)", hintText: "VD: 45"),
             ),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text("Hủy"),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Hủy")),
           ElevatedButton(
             onPressed: () async {
-              final val = hrvController.text;
-
-              if (val.isNotEmpty && int.tryParse(val) != null) {
-                // Lưu vào Backend với key 'hrv'
-                await healthService.syncMetricToBackend('hrv', val, 'ms');
-                
-                Navigator.pop(context);
-                
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("Đã lưu HRV thành công!")),
-                );
-
-                // Reload lại biểu đồ để thấy điểm mới
-                _loadChartData();
-              } else {
-                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("Vui lòng nhập số hợp lệ")),
-                );
+              if (hrvController.text.isNotEmpty && int.tryParse(hrvController.text) != null) {
+                await healthService.syncMetricToBackend('hrv', hrvController.text, 'ms');
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã lưu HRV thành công!")));
+                  _loadChartData();
+                }
               }
             },
-            child: Text("Lưu"),
+            child: const Text("Lưu"),
           ),
         ],
       ),
@@ -225,38 +206,28 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(widget.data['title'] ?? 'Chi tiết', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        title: Text(widget.data['title'] ?? 'Chi tiết', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(icon: Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
         actions: [
-          // Nút thêm Huyết áp
           if (widget.data['title']?.contains("Huyết áp") == true)
-            IconButton(
-              icon: Icon(Icons.add, color: Colors.blue),
-              onPressed: _showAddBPDialog,
-            ),
-            
-          // Nút thêm HRV
+            IconButton(icon: const Icon(Icons.add, color: Colors.blue), onPressed: _showAddBPDialog),
           if (widget.data['title']?.contains("Biến thiên tim") == true || widget.data['title']?.contains("HRV") == true)
-            IconButton(
-              icon: Icon(Icons.add, color: Colors.purple),
-              onPressed: _showAddHRVDialog,
-            ),
+            IconButton(icon: const Icon(Icons.add, color: Colors.purple), onPressed: _showAddHRVDialog),
         ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Header hiển thị chỉ số lớn (Giữ nguyên)
             Text(widget.data['value'] ?? '--', style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: color)),
-            Text(unit, style: TextStyle(fontSize: 18, color: Colors.grey)), 
-            SizedBox(height: 32),
+            Text(unit, style: const TextStyle(fontSize: 18, color: Colors.grey)), 
+            const SizedBox(height: 32),
 
-            // Filter Buttons (Giữ nguyên logic, chỉ chỉnh nhẹ UI nếu cần)
+            // Filter Buttons
             Container(
-              padding: EdgeInsets.all(4),
+              padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12)),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -268,14 +239,14 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
                         setState(() => _selectedFilter = filter);
                         _loadChartData();
                       },
-                      child: AnimatedContainer( // Dùng AnimatedContainer cho mượt
-                        duration: Duration(milliseconds: 200),
-                        padding: EdgeInsets.symmetric(vertical: 8),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           color: isSelected ? Colors.white : Colors.transparent,
                           borderRadius: BorderRadius.circular(8),
-                          boxShadow: isSelected ? [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))] : [],
+                          boxShadow: isSelected ? [const BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))] : [],
                         ),
                         child: Text(filter, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, color: isSelected ? Colors.black : Colors.grey)),
                       ),
@@ -284,161 +255,156 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
                 }).toList(),
               ),
             ),
-            SizedBox(height: 40),
+            const SizedBox(height: 40),
 
-            // PHẦN BIỂU ĐỒ ĐÃ ĐƯỢC TỐI ƯU
+            // --- CHART AREA (Đã sửa lỗi) ---
             Expanded(
-              child: _isLoading 
-                ? Center(child: CircularProgressIndicator())
-                : _chartData.isEmpty 
-                  ? Center(child: Text("Chưa có dữ liệu", style: TextStyle(color: Colors.grey)))
-                  : Padding(
-                      padding: const EdgeInsets.only(right: 16.0, bottom: 10.0),
-                      child: LineChart(
-                        LineChartData(
-                          // 1. Tối ưu Grid: Nét đứt mờ
-                          gridData: FlGridData(
-                            show: true,
-                            drawVerticalLine: false,
-                            horizontalInterval: (_maxY - _minY) / 4, // Chia làm 4 khoảng cho thoáng
-                            getDrawingHorizontalLine: (value) {
-                              return FlLine(
-                                color: Colors.grey[200], 
-                                strokeWidth: 1,
-                                dashArray: [5, 5], // Tạo nét đứt
-                              );
-                            },
-                          ),
-                          
-                          // 2. Tối ưu Axis Title: Font chữ nhỏ, gọn
-                          titlesData: FlTitlesData(
-                            show: true,
-                            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                            leftTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                reservedSize: 40,
-                                interval: (_maxY - _minY) / 4, // Khớp với grid
-                                getTitlesWidget: (value, meta) {
-                                  if (value == _minY || value == _maxY) return Container(); // Ẩn số min/max sát lề
-                                  return Text(
-                                    value.toInt().toString(),
-                                    style: TextStyle(color: Colors.grey[400], fontSize: 10, fontWeight: FontWeight.w500),
-                                  );
-                                },
+              child: _isLoading
+                  ? _buildShimmerLoading()
+                  : _chartData.isEmpty
+                      ? Center(child: Text("Chưa có dữ liệu", style: TextStyle(color: Colors.grey[500])))
+                      : Padding(
+                          padding: const EdgeInsets.only(left: 8, right: 20, top: 20, bottom: 10),
+                          child: LineChart(
+                            // 1. Dữ liệu và cấu hình Chart
+                            LineChartData(
+                              gridData: FlGridData(
+                                show: true,
+                                drawVerticalLine: false,
+                                getDrawingHorizontalLine: (_) => FlLine(color: Colors.grey.withOpacity(0.08), strokeWidth: 1),
                               ),
-                            ),
-                            bottomTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                reservedSize: 30,
-                                // Logic chia khoảng hiển thị ngày tháng thông minh hơn
-                                interval: _chartData.length > 1 
-                                    ? ((_chartData.last.x - _chartData.first.x) / 3).abs().clamp(1.0, double.infinity) // Chỉ hiện khoảng 4 mốc thời gian
-                                    : 1.0,
-                                getTitlesWidget: (value, meta) {
-                                  if (_chartData.isEmpty) return Container();
-                                  // Tránh hiển thị label quá sát lề phải
-                                  if (value >= _chartData.last.x) return Padding(padding: EdgeInsets.only(right: 8.0), child: Text(_formatTime(value), style: TextStyle(color: Colors.grey, fontSize: 10)));
-                                  
-                                  return Padding(
-                                    padding: const EdgeInsets.only(top: 8.0),
-                                    child: Text(
-                                      _formatTime(value),
-                                      style: TextStyle(color: Colors.grey[500], fontSize: 10, fontWeight: FontWeight.w500),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-                          
-                          borderData: FlBorderData(show: false),
-                          minY: _minY,
-                          maxY: _maxY,
-                          
-                          // 3. Tối ưu tương tác chạm (Touch Interaction)
-                          lineTouchData: LineTouchData(
-                            touchTooltipData: LineTouchTooltipData(
-                              fitInsideHorizontally: true, // Tự động căn chỉnh để không bị tràn màn hình
-                              tooltipPadding: EdgeInsets.all(8),
-                              tooltipMargin: 10,
-                              getTooltipColor: (touchedSpot) => Colors.white, // Nền trắng
-                              getTooltipItems: (touchedSpots) {
-                                return touchedSpots.map((LineBarSpot touchedSpot) {
-                                  return LineTooltipItem(
-                                    '${touchedSpot.y.round()} $unit\n',
-                                    TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14),
-                                    children: [
-                                      TextSpan(
-                                        text: _formatTime(touchedSpot.x),
-                                        style: TextStyle(color: Colors.grey, fontWeight: FontWeight.normal, fontSize: 12),
-                                      ),
-                                    ],
-                                  );
-                                }).toList();
-                              },
-                              // Thêm bóng đổ cho tooltip đẹp hơn
-                            ),
-                            // Hiển thị đường kẻ dọc và chấm tròn khi chạm
-                            getTouchedSpotIndicator: (LineChartBarData barData, List<int> spotIndexes) {
-                              return spotIndexes.map((spotIndex) {
-                                return TouchedSpotIndicatorData(
-                                  FlLine(color: color.withOpacity(0.5), strokeWidth: 2, dashArray: [5, 5]), // Đường kẻ dọc nét đứt
-                                  FlDotData(
-                                    getDotPainter: (spot, percent, barData, index) {
-                                      return FlDotCirclePainter(
-                                        radius: 6,
-                                        color: Colors.white,
-                                        strokeWidth: 3,
-                                        strokeColor: color, // Viền chấm tròn cùng màu biểu đồ
+                              titlesData: FlTitlesData(
+                                show: true,
+                                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                bottomTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    reservedSize: 32,
+                                    interval: _getSmartInterval(),
+                                    getTitlesWidget: (value, meta) {
+                                      if (value < 0 || value > _chartData.last.x) return Container();
+                                      return Padding(
+                                        padding: const EdgeInsets.only(top: 10),
+                                        child: Text(_formatTime(value), style: TextStyle(color: Colors.grey[600], fontSize: 11, fontWeight: FontWeight.w600)),
                                       );
                                     },
                                   ),
-                                );
-                              }).toList();
-                            },
-                            handleBuiltInTouches: true,
-                          ),
-                          
-                          lineBarsData: [
-                            LineChartBarData(
-                              spots: _chartData,
-                              isCurved: true,
-                              curveSmoothness: 0.35, // Độ cong vừa phải
-                              preventCurveOverShooting: true, // Tránh đường cong vọt ra khỏi biểu đồ
-                              color: color,
-                              barWidth: 3,
-                              isStrokeCapRound: true,
-                              
-                              // Ẩn các chấm mặc định, chỉ hiện khi chạm (đã xử lý ở trên)
-                              dotData: FlDotData(show: false),
-                              
-                              // Đổ màu gradient mượt mà bên dưới
-                              belowBarData: BarAreaData(
-                                show: true,
-                                gradient: LinearGradient(
-                                  colors: [
-                                    color.withOpacity(0.25),
-                                    color.withOpacity(0.05),
-                                    color.withOpacity(0.0),
-                                  ],
-                                  stops: [0.0, 0.7, 1.0], // Độ đậm nhạt theo chiều dọc
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
+                                ),
+                                leftTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    reservedSize: 44,
+                                    interval: (_maxY - _minY) == 0 ? 1 : (_maxY - _minY) / 5, 
+                                    getTitlesWidget: (value, meta) {
+                                      if (value == _minY || value == _maxY) return Container();
+                                      return Text(value.toInt().toString(), style: TextStyle(color: Colors.grey[400], fontSize: 11));
+                                    },
+                                  ),
                                 ),
                               ),
+                              borderData: FlBorderData(show: false),
+                              minX: 0,
+                              maxX: _chartData.last.x,
+                              minY: _minY,
+                              maxY: _maxY,
+
+                              // 2. Sửa lỗi LineTouchData (Dùng getTooltipItems thay vì tooltipBuilder)
+                              lineTouchData: LineTouchData(
+                                enabled: true,
+                                handleBuiltInTouches: true,
+                                touchTooltipData: LineTouchTooltipData(
+                                  // Màu nền tooltip
+                                  getTooltipColor: (group) => Colors.white.withOpacity(0.95),
+                                  // Nội dung tooltip
+                                  getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+                                    return touchedBarSpots.map((barSpot) {
+                                      return LineTooltipItem(
+                                        '${barSpot.y.toInt()} $unit\n', // Dòng 1: Giá trị
+                                        TextStyle(
+                                          color: color,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                        ),
+                                        children: [
+                                          TextSpan(
+                                            text: _formatTime(barSpot.x), // Dòng 2: Thời gian
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.normal,
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    }).toList();
+                                  },
+                                ),
+                                getTouchedSpotIndicator: (barData, spotIndexes) {
+                                  return spotIndexes.map((index) {
+                                    return TouchedSpotIndicatorData(
+                                      FlLine(color: color.withOpacity(0.3), strokeWidth: 2),
+                                      FlDotData(
+                                        getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
+                                          radius: 8, color: Colors.white, strokeWidth: 4, strokeColor: color,
+                                        ),
+                                      ),
+                                    );
+                                  }).toList();
+                                },
+                              ),
+
+                              lineBarsData: [
+                                LineChartBarData(
+                                  spots: _chartData,
+                                  isCurved: true,
+                                  curveSmoothness: 0.4,
+                                  preventCurveOverShooting: true,
+                                  barWidth: 4,
+                                  isStrokeCapRound: true,
+                                  color: color,
+                                  dotData: const FlDotData(show: false),
+                                  belowBarData: BarAreaData(
+                                    show: true,
+                                    gradient: LinearGradient(
+                                      colors: [color.withOpacity(0.4), color.withOpacity(0.1), color.withOpacity(0.0)],
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                            // 3. Sửa lỗi Duration (Chuyển ra ngoài LineChartData)
+                            duration: const Duration(milliseconds: 600),
+                            curve: Curves.easeOutQuart,
+                          ),
                         ),
-                      ),
-                    ),
             ),
-            SizedBox(height: 20),
-            Text("Biểu đồ hiển thị xu hướng ${_selectedFilter}", style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
+            const SizedBox(height: 20),
+            Text("Biểu đồ hiển thị xu hướng $_selectedFilter", style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
           ],
         ),
+      ),
+    );
+  }
+
+  double _getSmartInterval() {
+    if (_chartData.isEmpty) return 1;
+    double totalMinutes = _chartData.last.x;
+    int desiredLabels = _selectedFilter == "24h" ? 5 : _selectedFilter == "1W" ? 4 : 5;
+    double interval = totalMinutes / desiredLabels;
+    return interval <= 0 ? 1 : interval.ceilToDouble();
+  }
+
+  Widget _buildShimmerLoading() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[200]!,
+      highlightColor: Colors.grey[100]!,
+      child: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
       ),
     );
   }
