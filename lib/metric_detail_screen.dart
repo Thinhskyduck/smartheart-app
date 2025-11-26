@@ -97,6 +97,69 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
     }
   }
 
+  void _showAddBPDialog() {
+    final TextEditingController sysController = TextEditingController();
+    final TextEditingController diaController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Nhập chỉ số Huyết áp"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: sysController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(labelText: "Tâm thu (Systolic) - mmHg"),
+            ),
+            TextField(
+              controller: diaController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(labelText: "Tâm trương (Diastolic) - mmHg"),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("Hủy"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final sys = sysController.text;
+              final dia = diaController.text;
+
+              if (sys.isNotEmpty && dia.isNotEmpty) {
+                // Validate numbers
+                if (int.tryParse(sys) != null && int.tryParse(dia) != null) {
+                  final value = "$sys/$dia";
+                  
+                  // Save to backend ONLY (as requested)
+                  await healthService.syncMetricToBackend('bp', value, 'mmHg');
+                  
+                  Navigator.pop(context);
+                  
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Đã lưu chỉ số huyết áp thành công!")),
+                  );
+
+                  // Reload chart to fetch the new data from backend
+                  _loadChartData();
+                } else {
+                   ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Vui lòng nhập số hợp lệ")),
+                  );
+                }
+              }
+            },
+            child: Text("Lưu"),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final String unit = widget.data['unit'] ?? '';
@@ -109,6 +172,14 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(icon: Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
+        actions: widget.data['title']?.contains("Huyết áp") == true 
+            ? [
+                IconButton(
+                  icon: Icon(Icons.add, color: Colors.blue),
+                  onPressed: _showAddBPDialog,
+                )
+              ]
+            : null,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -169,7 +240,18 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
                             show: true,
                             rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                             topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            leftTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 40,
+                                getTitlesWidget: (value, meta) {
+                                  return Text(
+                                    value.toInt().toString(),
+                                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                                  );
+                                },
+                              ),
+                            ),
                             bottomTitles: AxisTitles(
                               sideTitles: SideTitles(
                                 showTitles: true,

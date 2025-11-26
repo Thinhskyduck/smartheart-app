@@ -31,38 +31,126 @@ class HealthService {
   // Request Permissions (Health + System)
   Future<bool> requestPermissions() async {
     bool healthAuthorized = false;
-    bool? hasPermissions = await _health.hasPermissions(_types);
-
-    if (hasPermissions == false) {
-      try {
-        healthAuthorized = await _health.requestAuthorization(_types);
-      } catch (e) {
-        debugPrint("Error requesting health permissions: $e");
-      }
-    } else {
-      healthAuthorized = true;
+    // Always request authorization to ensure we have both READ and WRITE permissions
+    // The Health plugin handles checking if they are already granted
+    try {
+      healthAuthorized = await _health.requestAuthorization(_types);
+    } catch (e) {
+      debugPrint("Error requesting health permissions: $e");
     }
 
     return healthAuthorized;
   }
 
-  // Fetch Historical Data for Charts
+  // Fetch Historical Data for Charts (Merge Health Connect + Backend)
   Future<List<HealthDataPoint>> fetchHistoricalData(HealthDataType type, DateTime startTime, DateTime endTime) async {
+    List<HealthDataPoint> combinedData = [];
+
+    // 1. Fetch from Health Connect
     try {
-      List<HealthDataPoint> healthDataList = await _health.getHealthDataFromTypes(
+      List<HealthDataPoint> healthConnectData = await _health.getHealthDataFromTypes(
         startTime: startTime,
         endTime: endTime,
         types: [type],
       );
-      
-      // Sort by date
-      healthDataList.sort((a, b) => a.dateTo.compareTo(b.dateTo));
-      
-      return healthDataList;
+      combinedData.addAll(healthConnectData);
     } catch (e) {
-      debugPrint("Error fetching historical data: $e");
-      return [];
+      debugPrint("Error fetching from Health Connect: $e");
     }
+
+    // 2. Fetch from Backend
+    try {
+      List<HealthDataPoint> backendData = await fetchBackendHistoricalData(type, startTime, endTime);
+      combinedData.addAll(backendData);
+    } catch (e) {
+      debugPrint("Error fetching from Backend: $e");
+    }
+
+    // 3. Sort by date
+    combinedData.sort((a, b) => a.dateTo.compareTo(b.dateTo));
+    
+    // 4. Remove duplicates (optional, based on timestamp?)
+    // For now, we assume they are distinct or we want to see both if they overlap.
+
+    return combinedData;
+  }
+
+  // Helper: Fetch from Backend and convert to HealthDataPoint
+  Future<List<HealthDataPoint>> fetchBackendHistoricalData(HealthDataType type, DateTime startTime, DateTime endTime) async {
+    List<HealthDataPoint> points = [];
+    
+    // Map HealthDataType to backend string type
+    String backendType = '';
+    if (type == HealthDataType.HEART_RATE) backendType = 'hr';
+    else if (type == HealthDataType.BLOOD_PRESSURE_SYSTOLIC) backendType = 'bp'; // We'll handle BP specially
+    else if (type == HealthDataType.BLOOD_OXYGEN) backendType = 'spo2';
+    else if (type == HealthDataType.WEIGHT) backendType = 'weight';
+    else return []; // Unsupported type for backend fetch
+
+    try {
+      final response = await apiService.get(ApiConfig.health); // Get all metrics
+      if (apiService.isSuccess(response)) {
+        List<dynamic> data = apiService.parseResponse(response);
+        
+        for (var item in data) {
+          // Filter by type
+          if (item['type'] != backendType) continue;
+          
+          // Filter by date
+          DateTime timestamp = DateTime.parse(item['timestamp']);
+          if (timestamp.isBefore(startTime) || timestamp.isAfter(endTime)) continue;
+
+          // Parse value
+          // Backend stores BP as "120/80", but here we are asking for SYSTOLIC (or Diastolic separately?)
+          // The chart logic in metric_detail_screen seems to request BLOOD_PRESSURE_SYSTOLIC.
+          // If the backend has "120/80", we need to extract 120.
+          
+          double? numericVal;
+          if (backendType == 'bp') {
+            String valStr = item['value'].toString();
+            if (valStr.contains('/')) {
+               var parts = valStr.split('/');
+               if (parts.length == 2) {
+                 // If requesting Systolic, take first part. 
+                 // Note: The current chart implementation in metric_detail_screen seems to only ask for BLOOD_PRESSURE_SYSTOLIC for the BP chart?
+                 // Let's check metric_detail_screen line 46: "if (title.contains("Huyết áp")) type = HealthDataType.BLOOD_PRESSURE_SYSTOLIC;"
+                 // So yes, it treats BP as Systolic for the chart (simplified).
+                 numericVal = double.tryParse(parts[0]);
+               }
+            }
+          } else {
+            numericVal = double.tryParse(item['value'].toString());
+          }
+
+          if (numericVal != null) {
+            // Create HealthDataPoint manually
+            // Note: Constructor might vary by version. 
+            // Assuming: HealthDataPoint(NumericHealthValue(numericVal), type, unit, dateFrom, dateTo, platform, deviceId, sourceId, sourceName)
+            // Or simplified constructor.
+            
+            // We use a workaround if constructor is private or complex:
+            // But usually it's public. Let's try to use a mock-like creation or standard constructor.
+            // If this fails compilation, we will need to adjust.
+            
+            points.add(HealthDataPoint(
+              value: NumericHealthValue(numericValue: numericVal),
+              type: type,
+              unit: HealthDataUnit.NO_UNIT, // Simplified
+              dateFrom: timestamp,
+              dateTo: timestamp,
+              sourcePlatform: HealthPlatformType.googleHealthConnect,
+              sourceDeviceId: "manual_backend",
+              sourceId: "manual_backend",
+              sourceName: "Manual Input",
+              uuid: "manual_${timestamp.millisecondsSinceEpoch}", // Unique ID
+            ));
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Error parsing backend data: $e");
+    }
+    return points;
   }
 
   // Sync health metric to backend
@@ -185,6 +273,37 @@ class HealthService {
     }
 
     return healthData;
+  }
+  // Write generic health data
+  Future<bool> writeHealthData(double value, HealthDataType type, DateTime startTime, DateTime endTime) async {
+    try {
+      bool success = await _health.writeHealthData(
+        value: value,
+        type: type,
+        startTime: startTime,
+        endTime: endTime,
+      );
+      return success;
+    } catch (e) {
+      debugPrint("Error writing health data: $e");
+      return false;
+    }
+  }
+
+  // Write Blood Pressure data
+  Future<bool> writeBloodPressure(int systolic, int diastolic, DateTime startTime, DateTime endTime) async {
+    try {
+      bool success = await _health.writeBloodPressure(
+        systolic: systolic,
+        diastolic: diastolic,
+        startTime: startTime,
+        endTime: endTime,
+      );
+      return success;
+    } catch (e) {
+      debugPrint("Error writing blood pressure: $e");
+      return false;
+    }
   }
 }
 

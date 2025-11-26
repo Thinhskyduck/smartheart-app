@@ -4,53 +4,131 @@ class HomeCareScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Cẩm nang Suy tim"), backgroundColor: Colors.white, foregroundColor: Colors.black, elevation: 1),
+      appBar: AppBar(
+        title: Text("Video Hướng Dẫn"),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 1,
+      ),
       body: ListView(
         padding: EdgeInsets.all(16),
         children: [
-          _buildGuideCard(
-            "1. Kiểm soát cân nặng",
-            "Cân hàng ngày vào buổi sáng sau khi đi vệ sinh và trước khi ăn. Nếu tăng >2kg/3 ngày, hãy báo bác sĩ.",
-            Icons.monitor_weight, Colors.blue
+          _buildVideoCard(
+            context,
+            "1. Hướng dẫn kiểm soát cân nặng",
+            "3:45",
+            Colors.blueAccent,
           ),
-          _buildGuideCard(
-            "2. Chế độ ăn giảm muối",
-            "Ăn nhạt hoàn toàn. Hạn chế nước chấm, dưa cà muối, thực phẩm đóng hộp.",
-            Icons.soup_kitchen, Colors.orange
+          _buildVideoCard(
+            context,
+            "2. Thực đơn giảm muối mỗi ngày",
+            "5:20",
+            Colors.orangeAccent,
           ),
-          _buildGuideCard(
-            "3. Hạn chế dịch",
-            "Uống nước theo chỉ dẫn của bác sĩ (thường < 1.5 lít/ngày nếu suy tim nặng).",
-            Icons.water_drop, Colors.cyan
+          _buildVideoCard(
+            context,
+            "3. Cách uống nước đúng cách",
+            "2:15",
+            Colors.cyan,
           ),
-          _buildGuideCard(
-            "4. Vận động thể lực",
-            "Đi bộ nhẹ nhàng, vừa sức. Dừng lại nếu thấy khó thở, đau ngực.",
-            Icons.directions_walk, Colors.green
+          _buildVideoCard(
+            context,
+            "4. Bài tập thể dục nhẹ nhàng",
+            "10:00",
+            Colors.green,
+          ),
+          _buildVideoCard(
+            context,
+            "5. Xử lý khi thấy khó thở",
+            "4:30",
+            Colors.redAccent,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildGuideCard(String title, String content, IconData icon, Color color) {
+  Widget _buildVideoCard(BuildContext context, String title, String duration, Color color) {
     return Card(
       margin: EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
+      elevation: 2, // Đổ bóng nhẹ để thẻ nổi lên
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      clipBehavior: Clip.antiAlias, // Cắt viền để hiệu ứng gợn sóng không bị tràn ra ngoài
+      child: InkWell(
+        // InkWell tạo hiệu ứng gợn sóng khi bấm vào
+        onTap: () {
+          // Demo: Hiển thị thông báo nhỏ khi bấm
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Đang mở video: $title"),
+              duration: Duration(seconds: 1),
+            ),
+          );
+        },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            // Phần giả lập Thumbnail Video
+            Stack(
+              alignment: Alignment.center,
               children: [
-                Icon(icon, color: color, size: 28),
-                SizedBox(width: 12),
-                Expanded(child: Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+                Container(
+                  height: 150,
+                  width: double.infinity,
+                  color: color.withOpacity(0.2), // Màu nền giả ảnh bìa
+                  child: Icon(
+                    Icons.image, // Icon nền mờ
+                    size: 80,
+                    color: color.withOpacity(0.4),
+                  ),
+                ),
+                // Nút Play ở giữa để nhận diện là Video
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.black45,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.play_arrow, color: Colors.white, size: 40),
+                ),
+                // Thời lượng video ở góc
+                Positioned(
+                  bottom: 8,
+                  right: 8,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black87,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      duration,
+                      style: TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                  ),
+                ),
               ],
             ),
-            Divider(height: 24),
-            Text(content, style: TextStyle(fontSize: 16, height: 1.5, color: Colors.grey[800])),
+            // Phần tiêu đề video
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Icon(Icons.more_vert, color: Colors.grey),
+                ],
+              ),
+            ),
           ],
         ),
       ),
