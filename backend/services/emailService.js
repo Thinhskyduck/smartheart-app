@@ -2,21 +2,27 @@ const nodemailer = require('nodemailer');
 
 // Email configuration
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: 'shopthinhtan@gmail.com',
-        pass: 'glay sszx atnv qnnc' // App password
-    }
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true, // use SSL
+  auth: {
+    user: 'shopthinhtan@gmail.com',
+    pass: 'glay sszx atnv qnnc' // App password
+  },
+  // Add timeout settings
+  connectionTimeout: 20000, // 20 seconds
+  greetingTimeout: 20000,
+  socketTimeout: 20000
 });
 
 // Generate 6-digit OTP
 const generateOTP = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+  return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
 // Beautiful HTML email template
 const getOTPEmailTemplate = (otp, userName) => {
-    return `
+  return `
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -109,54 +115,54 @@ const getOTPEmailTemplate = (otp, userName) => {
 
 // Send OTP email
 const sendOTPEmail = async (email, userName) => {
-    try {
-        const otp = generateOTP();
+  try {
+    const otp = generateOTP();
 
-        const mailOptions = {
-            from: {
-                name: 'PentaPulse Health',
-                address: 'shopthinhtan@gmail.com'
-            },
-            to: email,
-            subject: '🔐 Mã xác thực OTP - PentaPulse Health',
-            html: getOTPEmailTemplate(otp, userName)
-        };
+    const mailOptions = {
+      from: {
+        name: 'PentaPulse Health',
+        address: 'shopthinhtan@gmail.com'
+      },
+      to: email,
+      subject: '🔐 Mã xác thực OTP - PentaPulse Health',
+      html: getOTPEmailTemplate(otp, userName)
+    };
 
-        const info = await transporter.sendMail(mailOptions);
-        console.log('✅ Email sent successfully:', info.messageId);
+    const info = await transporter.sendMail(mailOptions);
+    console.log('✅ Email sent successfully:', info.messageId);
 
-        return {
-            success: true,
-            otp: otp, // Return OTP to store in database/session
-            messageId: info.messageId
-        };
-    } catch (error) {
-        console.error('❌ Error sending email:', error);
-        return {
-            success: false,
-            error: error.message
-        };
-    }
+    return {
+      success: true,
+      otp: otp, // Return OTP to store in database/session
+      messageId: info.messageId
+    };
+  } catch (error) {
+    console.error('❌ Error sending email:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
 };
 
 // Verify OTP (compare with stored OTP)
 const verifyOTP = (inputOTP, storedOTP, timestamp) => {
-    const TEN_MINUTES = 10 * 60 * 1000; // 10 minutes in milliseconds
-    const now = Date.now();
+  const TEN_MINUTES = 10 * 60 * 1000; // 10 minutes in milliseconds
+  const now = Date.now();
 
-    if (now - timestamp > TEN_MINUTES) {
-        return { valid: false, message: 'Mã OTP đã hết hạn' };
-    }
+  if (now - timestamp > TEN_MINUTES) {
+    return { valid: false, message: 'Mã OTP đã hết hạn' };
+  }
 
-    if (inputOTP === storedOTP) {
-        return { valid: true, message: 'Xác thực thành công' };
-    }
+  if (inputOTP === storedOTP) {
+    return { valid: true, message: 'Xác thực thành công' };
+  }
 
-    return { valid: false, message: 'Mã OTP không chính xác' };
+  return { valid: false, message: 'Mã OTP không chính xác' };
 };
 
 module.exports = {
-    sendOTPEmail,
-    verifyOTP,
-    generateOTP
+  sendOTPEmail,
+  verifyOTP,
+  generateOTP
 };

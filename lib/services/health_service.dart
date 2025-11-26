@@ -169,27 +169,28 @@ class HealthService {
     }
   }
 
-  // Fetch Health Data (Dashboard Snapshot) - Using Health Connect directly for better performance
+  // Fetch Health Data (Dashboard Snapshot) - Merge Backend + Health Connect
   Future<Map<String, dynamic>> fetchHealthData() async {
     Map<String, dynamic> healthData = {};
 
-    // OPTIMIZATION: Skip backend for now, use Health Connect directly
-    // This makes the app much faster. Uncomment below to re-enable backend fetch.
-    
-    // // Try to get latest data from backend first
-    // try {
-    //   final response = await apiService.get(ApiConfig.healthLatest);
-    //   if (apiService.isSuccess(response)) {
-    //     final backendData = apiService.parseResponse(response);
-    //     if (backendData.isNotEmpty) {
-    //       return backendData;
-    //     }
-    //   }
-    // } catch (e) {
-    //   debugPrint("Backend fetch failed, using device data: $e");
-    // }
+    // 1. LẤY DỮ LIỆU TỪ BACKEND (Server)
+    // Giúp hiển thị các chỉ số nhập tay (VD: Huyết áp)
+    try {
+      final response = await apiService.get(ApiConfig.healthLatest);
+      if (apiService.isSuccess(response)) {
+        final backendData = apiService.parseResponse(response);
+        
+        // Chỉ gộp dữ liệu nếu backend trả về Map hợp lệ
+        if (backendData is Map<String, dynamic>) {
+           healthData.addAll(backendData); 
+        }
+      }
+    } catch (e) {
+      debugPrint("Backend fetch failed, using device data only: $e");
+    }
 
-    // Read from Health Connect
+    // 2. LẤY DỮ LIỆU TỪ HEALTH CONNECT (Thiết bị)
+    // Dữ liệu này sẽ ưu tiên hơn (ghi đè) nếu có dữ liệu đo thực tế từ thiết bị
     final now = DateTime.now();
     final yesterday = now.subtract(Duration(days: 1));
 
@@ -200,19 +201,17 @@ class HealthService {
         types: _types,
       );
 
-      // Process Data
-      // 1. Heart Rate (Latest)
+      // --- XỬ LÝ NHỊP TIM (Heart Rate) ---
       var hrPoints = healthDataList.where((e) => e.type == HealthDataType.HEART_RATE).toList();
       if (hrPoints.isNotEmpty) {
-        hrPoints.sort((a, b) => b.dateTo.compareTo(a.dateTo));
+        hrPoints.sort((a, b) => b.dateTo.compareTo(a.dateTo)); // Lấy mới nhất
         final hrValue = (hrPoints.first.value as NumericHealthValue).numericValue.round();
-        healthData['hr'] = hrValue;
         
-        // Sync to backend
-        await syncMetricToBackend('hr', hrValue.toString(), 'bpm');
+        healthData['hr'] = hrValue; // Cập nhật vào map hiển thị
+        await syncMetricToBackend('hr', hrValue.toString(), 'bpm'); // Đồng bộ ngược lên server
       }
 
-      // 2. Blood Pressure (Latest)
+      // --- XỬ LÝ HUYẾT ÁP (Blood Pressure) ---
       var sysPoints = healthDataList.where((e) => e.type == HealthDataType.BLOOD_PRESSURE_SYSTOLIC).toList();
       var diaPoints = healthDataList.where((e) => e.type == HealthDataType.BLOOD_PRESSURE_DIASTOLIC).toList();
       
@@ -223,36 +222,33 @@ class HealthService {
         var sys = (sysPoints.first.value as NumericHealthValue).numericValue.round();
         var dia = (diaPoints.first.value as NumericHealthValue).numericValue.round();
         final bpValue = "$sys/$dia";
-        healthData['bp'] = bpValue;
         
-        // Sync to backend
+        healthData['bp'] = bpValue; // Ghi đè nếu có đo từ thiết bị
         await syncMetricToBackend('bp', bpValue, 'mmHg');
       }
 
-      // 3. SpO2 (Latest)
+      // --- XỬ LÝ SPO2 ---
       var spo2Points = healthDataList.where((e) => e.type == HealthDataType.BLOOD_OXYGEN).toList();
       if (spo2Points.isNotEmpty) {
         spo2Points.sort((a, b) => b.dateTo.compareTo(a.dateTo));
         var val = (spo2Points.first.value as NumericHealthValue).numericValue;
-        if (val <= 1.0) val = val * 100;
-        healthData['spo2'] = val.round();
+        if (val <= 1.0) val = val * 100; // Chuyển đổi về thang 100 nếu cần
         
-        // Sync to backend
+        healthData['spo2'] = val.round();
         await syncMetricToBackend('spo2', val.round().toString(), '%');
       }
 
-      // 4. Weight (Latest)
+      // --- XỬ LÝ CÂN NẶNG (Weight) ---
       var weightPoints = healthDataList.where((e) => e.type == HealthDataType.WEIGHT).toList();
       if (weightPoints.isNotEmpty) {
         weightPoints.sort((a, b) => b.dateTo.compareTo(a.dateTo));
         final weightValue = (weightPoints.first.value as NumericHealthValue).numericValue.toStringAsFixed(1);
-        healthData['weight'] = weightValue;
         
-        // Sync to backend
+        healthData['weight'] = weightValue;
         await syncMetricToBackend('weight', weightValue, 'kg');
       }
 
-      // 5. Sleep (Total duration last night)
+      // --- XỬ LÝ GIẤC NGỦ (Sleep) ---
       var sleepPoints = healthDataList.where((e) => e.type == HealthDataType.SLEEP_SESSION).toList();
       if (sleepPoints.isNotEmpty) {
          int totalMinutes = 0;
@@ -262,14 +258,13 @@ class HealthService {
          int hours = totalMinutes ~/ 60;
          int minutes = totalMinutes % 60;
          final sleepValue = "${hours}h ${minutes}p";
-         healthData['sleep'] = sleepValue;
          
-         // Sync to backend
+         healthData['sleep'] = sleepValue;
          await syncMetricToBackend('sleep', sleepValue, '');
       }
 
     } catch (e) {
-      debugPrint("Error fetching health data: $e");
+      debugPrint("Error fetching health data from device: $e");
     }
 
     return healthData;
