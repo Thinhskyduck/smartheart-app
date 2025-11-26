@@ -116,7 +116,8 @@ router.get('/patients-health', async (req, res) => {
                 criticalMetric: criticalMetric,
                 lastUpdate: lastUpdate,
                 phoneNumber: patient.phoneNumber,
-                guardianPhone: patient.guardianPhone
+                guardianPhone: patient.guardianPhone,
+                email: patient.email
             });
         }
 
