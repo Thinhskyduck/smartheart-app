@@ -4,17 +4,21 @@ const nodemailer = require('nodemailer');
 // Email configuration với DEBUG
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 465,
-  secure: true, // dùng SSL
+  port: 587, // Đổi sang 587
+  secure: false, // false cho cổng 587 (sẽ tự động nâng cấp lên TLS)
   auth: {
-    user: 'shopthinhtan@gmail.com',
-    pass: 'glay sszx atnv qnnc' // Đảm bảo đây là App Password mới nhất
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD
   },
-  // --- CẤU HÌNH DEBUG QUAN TRỌNG ---
-  debug: true, // Hiển thị thông tin debug ra console
-  logger: true, // Log lại mọi hoạt động của nodemailer
-  // ----------------------------------
-  // Timeout settings (tăng lên 30s để test)
+  // --- CẤU HÌNH FIX LỖI MẠNG ---
+  tls: {
+    ciphers: 'SSLv3', // Hỗ trợ các thuật toán mã hóa cũ nếu cần
+    rejectUnauthorized: false // Bỏ qua lỗi chứng chỉ (quan trọng trên Render)
+  },
+  family: 4, // Ép buộc sử dụng IPv4 (Quan trọng!)
+  // -----------------------------
+  debug: true,
+  logger: true,
   connectionTimeout: 30000,
   greetingTimeout: 30000,
   socketTimeout: 30000
