@@ -60,3 +60,29 @@ exports.linkGuardian = async (req, res) => {
         res.status(500).send('Server error');
     }
 };
+
+// Get list of guardians for current patient
+exports.getGuardians = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id)
+            .populate('guardians', 'fullName phoneNumber email');
+
+        res.json(user.guardians || []);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+};
+
+// Get list of patients for current guardian/doctor
+exports.getPatients = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id)
+            .populate('patients', 'fullName phoneNumber email guardianCode');
+
+        res.json(user.patients || []);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+};

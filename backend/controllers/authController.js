@@ -76,6 +76,9 @@ exports.verifyOTPAndRegister = async (req, res) => {
             return res.status(400).json({ msg: 'Số điện thoại đã được đăng ký' });
         }
 
+        // Generate new unique guardianCode for this user
+        const newGuardianCode = Math.floor(100000 + Math.random() * 900000).toString();
+
         // Create new user
         user = new User({
             fullName: storedData.userData.fullName,
@@ -83,13 +86,33 @@ exports.verifyOTPAndRegister = async (req, res) => {
             phoneNumber,
             password,
             role,
-            guardianCode: guardianCode || Math.floor(100000 + Math.random() * 900000).toString()
+            guardianCode: newGuardianCode  // Always generate new code for this user
         });
 
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(password, salt);
 
         await user.save();
+
+        // If registering as guardian with a patient's guardianCode, create the relationship
+        if (role === 'guardian' && guardianCode) {
+            const patient = await User.findOne({
+                guardianCode: guardianCode,
+                role: 'patient'
+            });
+
+            if (patient) {
+                // Add bidirectional relationship
+                patient.guardians.push(user.id);
+                await patient.save();
+
+                user.patients.push(patient.id);
+                await user.save();
+            } else {
+                // Code not found but don't fail registration
+                console.log('Guardian code not found:', guardianCode);
+            }
+        }
 
         // Remove OTP from store
         otpStore.delete(email);
@@ -191,5 +214,29 @@ exports.getMe = async (req, res) => {
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server error');
+    }
+};
+
+// Validate guardian code
+exports.validateGuardianCode = async (req, res) => {
+    const { guardianCode } = req.body;
+
+    try {
+        const patient = await User.findOne({
+            guardianCode,
+            role: 'patient'
+        }).select('fullName guardianCode');
+
+        if (patient) {
+            res.json({
+                valid: true,
+                patientName: patient.fullName
+            });
+        } else {
+            res.json({ valid: false });
+        }
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ valid: false, msg: 'Server error' });
     }
 };

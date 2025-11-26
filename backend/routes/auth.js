@@ -28,4 +28,9 @@ router.post('/login', authController.login);
 // @access  Private
 router.get('/me', auth, authController.getMe);
 
+// @route   POST api/auth/validate-guardian-code
+// @desc    Validate guardian code before registration
+// @access  Public
+router.post('/validate-guardian-code', authController.validateGuardianCode);
+
 module.exports = router;
