@@ -1,18 +1,32 @@
+// services/emailService.js
 const nodemailer = require('nodemailer');
 
-// Email configuration
+// Email configuration với DEBUG
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 465,
-  secure: true, // use SSL
+  secure: true, // dùng SSL
   auth: {
     user: 'shopthinhtan@gmail.com',
-    pass: 'glay sszx atnv qnnc' // App password
+    pass: 'glay sszx atnv qnnc' // Đảm bảo đây là App Password mới nhất
   },
-  // Add timeout settings
-  connectionTimeout: 20000, // 20 seconds
-  greetingTimeout: 20000,
-  socketTimeout: 20000
+  // --- CẤU HÌNH DEBUG QUAN TRỌNG ---
+  debug: true, // Hiển thị thông tin debug ra console
+  logger: true, // Log lại mọi hoạt động của nodemailer
+  // ----------------------------------
+  // Timeout settings (tăng lên 30s để test)
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+  socketTimeout: 30000
+});
+
+// Kiểm tra kết nối ngay khi khởi động
+transporter.verify(function (error, success) {
+  if (error) {
+    console.error('🔴 Lỗi kết nối SMTP ngay khi khởi động:', error);
+  } else {
+    console.log('🟢 Server đã sẵn sàng gửi email');
+  }
 });
 
 // Generate 6-digit OTP
@@ -36,7 +50,6 @@ const getOTPEmailTemplate = (otp, userName) => {
       <td align="center">
         <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden;">
           
-          <!-- Header with gradient -->
           <tr>
             <td style="background: linear-gradient(135deg, #2260FF 0%, #1a4fd6 100%); padding: 40px 30px; text-align: center;">
               <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">
@@ -48,7 +61,6 @@ const getOTPEmailTemplate = (otp, userName) => {
             </td>
           </tr>
           
-          <!-- Content -->
           <tr>
             <td style="padding: 40px 30px;">
               <h2 style="margin: 0 0 20px 0; color: #1a1a1a; font-size: 24px; font-weight: 600;">
@@ -58,7 +70,6 @@ const getOTPEmailTemplate = (otp, userName) => {
                 Cảm ơn bạn đã đăng ký tài khoản PentaPulse. Để hoàn tất quá trình đăng ký, vui lòng sử dụng mã OTP bên dưới:
               </p>
               
-              <!-- OTP Box -->
               <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
                 <tr>
                   <td align="center">
@@ -74,7 +85,6 @@ const getOTPEmailTemplate = (otp, userName) => {
                 </tr>
               </table>
               
-              <!-- Warning -->
               <div style="background-color: #fff3e0; border-left: 4px solid #ff9800; padding: 15px 20px; border-radius: 8px; margin: 25px 0;">
                 <p style="margin: 0; color: #e65100; font-size: 14px; line-height: 1.5;">
                   ⚠️ <strong>Lưu ý:</strong> Mã OTP này có hiệu lực trong <strong>10 phút</strong>. Vui lòng không chia sẻ mã này với bất kỳ ai.
@@ -87,7 +97,6 @@ const getOTPEmailTemplate = (otp, userName) => {
             </td>
           </tr>
           
-          <!-- Footer -->
           <tr>
             <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e0e0e0;">
               <p style="margin: 0 0 10px 0; color: #888888; font-size: 13px;">
@@ -115,6 +124,7 @@ const getOTPEmailTemplate = (otp, userName) => {
 
 // Send OTP email
 const sendOTPEmail = async (email, userName) => {
+  console.log(`🚀 Bắt đầu quy trình gửi email đến: ${email}`);
   try {
     const otp = generateOTP();
 
@@ -128,8 +138,9 @@ const sendOTPEmail = async (email, userName) => {
       html: getOTPEmailTemplate(otp, userName)
     };
 
+    console.log('📨 Đang gọi transporter.sendMail...');
     const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Email sent successfully:', info.messageId);
+    console.log('✅ Email sent successfully. MessageID:', info.messageId);
 
     return {
       success: true,
@@ -137,7 +148,7 @@ const sendOTPEmail = async (email, userName) => {
       messageId: info.messageId
     };
   } catch (error) {
-    console.error('❌ Error sending email:', error);
+    console.error('❌ LỖI CHI TIẾT KHI GỬI MAIL:', error);
     return {
       success: false,
       error: error.message
