@@ -159,7 +159,64 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
       ),
     );
   }
+  // --- THÊM HÀM NHẬP HRV MỚI ---
+  void _showAddHRVDialog() {
+    final TextEditingController hrvController = TextEditingController();
 
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Nhập chỉ số HRV"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text("Nhập chỉ số Biến thiên nhịp tim (RMSSD - ms).", style: TextStyle(fontSize: 13, color: Colors.grey)),
+            SizedBox(height: 10),
+            TextField(
+              controller: hrvController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: "Chỉ số HRV (ms)", 
+                border: OutlineInputBorder(),
+                hintText: "VD: 45"
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("Hủy"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final val = hrvController.text;
+
+              if (val.isNotEmpty && int.tryParse(val) != null) {
+                // Lưu vào Backend với key 'hrv'
+                await healthService.syncMetricToBackend('hrv', val, 'ms');
+                
+                Navigator.pop(context);
+                
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Đã lưu HRV thành công!")),
+                );
+
+                // Reload lại biểu đồ để thấy điểm mới
+                _loadChartData();
+              } else {
+                 ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Vui lòng nhập số hợp lệ")),
+                );
+              }
+            },
+            child: Text("Lưu"),
+          ),
+        ],
+      ),
+    );
+  }
+  
   @override
   Widget build(BuildContext context) {
     final String unit = widget.data['unit'] ?? '';
@@ -172,14 +229,21 @@ class _MetricDetailScreenState extends State<MetricDetailScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(icon: Icon(Icons.arrow_back, color: Colors.black), onPressed: () => Navigator.pop(context)),
-        actions: widget.data['title']?.contains("Huyết áp") == true 
-            ? [
-                IconButton(
-                  icon: Icon(Icons.add, color: Colors.blue),
-                  onPressed: _showAddBPDialog,
-                )
-              ]
-            : null,
+        actions: [
+          // Nút thêm Huyết áp
+          if (widget.data['title']?.contains("Huyết áp") == true)
+            IconButton(
+              icon: Icon(Icons.add, color: Colors.blue),
+              onPressed: _showAddBPDialog,
+            ),
+            
+          // Nút thêm HRV
+          if (widget.data['title']?.contains("Biến thiên tim") == true || widget.data['title']?.contains("HRV") == true)
+            IconButton(
+              icon: Icon(Icons.add, color: Colors.purple),
+              onPressed: _showAddHRVDialog,
+            ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

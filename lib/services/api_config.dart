@@ -14,8 +14,8 @@ class ApiConfig {
     }
     return 'https://pentapulse-app.onrender.com';
   }
+  static const String AI_MODEL_URL = 'https://model-pentapulse.onrender.com/predict';
   static const String API_VERSION = '/api';
-  
   // API Endpoints
   static String get authLogin => '$BASE_URL$API_VERSION/auth/login';
   static String get authRegister => '$BASE_URL$API_VERSION/auth/register';

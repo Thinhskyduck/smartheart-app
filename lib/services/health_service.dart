@@ -21,6 +21,7 @@ class HealthService {
     HealthDataType.SLEEP_SESSION,
     HealthDataType.WEIGHT,
     HealthDataType.STEPS,
+    HealthDataType.HEART_RATE_VARIABILITY_RMSSD, // Thêm chỉ số này
   ];
 
   // Configure Health Connect (Android)
@@ -85,6 +86,7 @@ class HealthService {
     else if (type == HealthDataType.BLOOD_PRESSURE_SYSTOLIC) backendType = 'bp'; // We'll handle BP specially
     else if (type == HealthDataType.BLOOD_OXYGEN) backendType = 'spo2';
     else if (type == HealthDataType.WEIGHT) backendType = 'weight';
+    else if (type == HealthDataType.HEART_RATE_VARIABILITY_RMSSD) backendType = 'hrv';
     else return []; // Unsupported type for backend fetch
 
     try {
@@ -173,58 +175,56 @@ class HealthService {
   Future<Map<String, dynamic>> fetchHealthData() async {
     Map<String, dynamic> healthData = {};
 
-    // 1. LẤY DỮ LIỆU TỪ BACKEND (Server)
-    // Giúp hiển thị các chỉ số nhập tay (VD: Huyết áp)
+    // 1. LẤY DỮ LIỆU TỪ BACKEND (Server) - Như cũ
     try {
       final response = await apiService.get(ApiConfig.healthLatest);
       if (apiService.isSuccess(response)) {
         final backendData = apiService.parseResponse(response);
-        
-        // Chỉ gộp dữ liệu nếu backend trả về Map hợp lệ
         if (backendData is Map<String, dynamic>) {
            healthData.addAll(backendData); 
         }
       }
     } catch (e) {
-      debugPrint("Backend fetch failed, using device data only: $e");
+      debugPrint("Backend fetch failed: $e");
     }
 
-    // 2. LẤY DỮ LIỆU TỪ HEALTH CONNECT (Thiết bị)
-    // Dữ liệu này sẽ ưu tiên hơn (ghi đè) nếu có dữ liệu đo thực tế từ thiết bị
+    // 2. LẤY DỮ LIỆU TỪ THIẾT BỊ (Health Connect)
     final now = DateTime.now();
-    final yesterday = now.subtract(Duration(days: 1));
+    // Lấy dữ liệu rộng hơn (24h) để đảm bảo có data cho AI
+    final startTime = now.subtract(Duration(hours: 24));
 
     try {
       List<HealthDataPoint> healthDataList = await _health.getHealthDataFromTypes(
-        startTime: yesterday,
+        startTime: startTime,
         endTime: now,
         types: _types,
       );
 
-      // --- XỬ LÝ NHỊP TIM (Heart Rate) ---
+      // --- XỬ LÝ NHỊP TIM (HR) ---
       var hrPoints = healthDataList.where((e) => e.type == HealthDataType.HEART_RATE).toList();
       if (hrPoints.isNotEmpty) {
-        hrPoints.sort((a, b) => b.dateTo.compareTo(a.dateTo)); // Lấy mới nhất
+        hrPoints.sort((a, b) => b.dateTo.compareTo(a.dateTo));
         final hrValue = (hrPoints.first.value as NumericHealthValue).numericValue.round();
-        
-        healthData['hr'] = hrValue; // Cập nhật vào map hiển thị
-        await syncMetricToBackend('hr', hrValue.toString(), 'bpm'); // Đồng bộ ngược lên server
+        healthData['hr'] = hrValue; // Display
+        healthData['hr_raw'] = hrValue; // AI Input
       }
 
-      // --- XỬ LÝ HUYẾT ÁP (Blood Pressure) ---
+      // --- XỬ LÝ HUYẾT ÁP (BP) ---
       var sysPoints = healthDataList.where((e) => e.type == HealthDataType.BLOOD_PRESSURE_SYSTOLIC).toList();
       var diaPoints = healthDataList.where((e) => e.type == HealthDataType.BLOOD_PRESSURE_DIASTOLIC).toList();
-      
       if (sysPoints.isNotEmpty && diaPoints.isNotEmpty) {
         sysPoints.sort((a, b) => b.dateTo.compareTo(a.dateTo));
         diaPoints.sort((a, b) => b.dateTo.compareTo(a.dateTo));
-        
         var sys = (sysPoints.first.value as NumericHealthValue).numericValue.round();
         var dia = (diaPoints.first.value as NumericHealthValue).numericValue.round();
-        final bpValue = "$sys/$dia";
-        
-        healthData['bp'] = bpValue; // Ghi đè nếu có đo từ thiết bị
-        await syncMetricToBackend('bp', bpValue, 'mmHg');
+        healthData['bp'] = "$sys/$dia";
+        healthData['bp_sys_raw'] = sys; // AI Input (thường dùng tâm thu)
+      } else if (healthData['bp'] != null) {
+         // Fallback nếu lấy từ backend dạng string "120/80"
+         try {
+           String bpStr = healthData['bp'].toString();
+           healthData['bp_sys_raw'] = int.parse(bpStr.split('/')[0]);
+         } catch (_) {}
       }
 
       // --- XỬ LÝ SPO2 ---
@@ -232,39 +232,68 @@ class HealthService {
       if (spo2Points.isNotEmpty) {
         spo2Points.sort((a, b) => b.dateTo.compareTo(a.dateTo));
         var val = (spo2Points.first.value as NumericHealthValue).numericValue;
-        if (val <= 1.0) val = val * 100; // Chuyển đổi về thang 100 nếu cần
-        
+        if (val <= 1.0) val = val * 100;
         healthData['spo2'] = val.round();
-        await syncMetricToBackend('spo2', val.round().toString(), '%');
+        healthData['spo2_raw'] = val.round();
       }
 
-      // --- XỬ LÝ CÂN NẶNG (Weight) ---
+      // --- XỬ LÝ CÂN NẶNG (Weight) & Weight Change ---
       var weightPoints = healthDataList.where((e) => e.type == HealthDataType.WEIGHT).toList();
       if (weightPoints.isNotEmpty) {
         weightPoints.sort((a, b) => b.dateTo.compareTo(a.dateTo));
-        final weightValue = (weightPoints.first.value as NumericHealthValue).numericValue.toStringAsFixed(1);
+        double currentWeight = (weightPoints.first.value as NumericHealthValue).numericValue.toDouble();
+        healthData['weight'] = currentWeight.toStringAsFixed(1);
         
-        healthData['weight'] = weightValue;
-        await syncMetricToBackend('weight', weightValue, 'kg');
+        // Tính thay đổi cân nặng (Giả lập: so với điểm dữ liệu cũ nhất trong 24h hoặc 0)
+        // Trong thực tế cần query dài ngày hơn. Ở đây tạm lấy 0 hoặc mock.
+        double weightChange = 0.0;
+        if (weightPoints.length > 1) {
+           double oldWeight = (weightPoints.last.value as NumericHealthValue).numericValue.toDouble();
+           weightChange = currentWeight - oldWeight;
+        }
+        healthData['weight_change_raw'] = weightChange;
+      } else {
+        healthData['weight_change_raw'] = 0.0; // Mặc định
       }
 
       // --- XỬ LÝ GIẤC NGỦ (Sleep) ---
       var sleepPoints = healthDataList.where((e) => e.type == HealthDataType.SLEEP_SESSION).toList();
+      double totalSleepHours = 0;
       if (sleepPoints.isNotEmpty) {
          int totalMinutes = 0;
          for (var p in sleepPoints) {
            totalMinutes += p.dateTo.difference(p.dateFrom).inMinutes;
          }
+         totalSleepHours = totalMinutes / 60.0;
+         
          int hours = totalMinutes ~/ 60;
          int minutes = totalMinutes % 60;
-         final sleepValue = "${hours}h ${minutes}p";
-         
-         healthData['sleep'] = sleepValue;
-         await syncMetricToBackend('sleep', sleepValue, '');
+         healthData['sleep'] = "${hours}h ${minutes}p";
+      }
+      healthData['sleep_hours_raw'] = totalSleepHours; // AI Input
+
+      // --- XỬ LÝ STEPS (Mới) ---
+      var stepPoints = healthDataList.where((e) => e.type == HealthDataType.STEPS).toList();
+      int totalSteps = 0;
+      for (var p in stepPoints) {
+        totalSteps += (p.value as NumericHealthValue).numericValue.round();
+      }
+      healthData['steps'] = totalSteps; // Có thể hiển thị nếu muốn
+      healthData['steps_raw'] = totalSteps; // AI Input
+
+      // --- XỬ LÝ HRV (Mới) ---
+      var hrvPoints = healthDataList.where((e) => e.type == HealthDataType.HEART_RATE_VARIABILITY_RMSSD).toList();
+      if (hrvPoints.isNotEmpty) {
+        hrvPoints.sort((a, b) => b.dateTo.compareTo(a.dateTo));
+        var val = (hrvPoints.first.value as NumericHealthValue).numericValue.round();
+        healthData['hrv'] = val;
+        healthData['hrv_raw'] = val;
+      } else {
+        healthData['hrv_raw'] = 0; // Mặc định nếu không có
       }
 
     } catch (e) {
-      debugPrint("Error fetching health data from device: $e");
+      debugPrint("Error fetching health data: $e");
     }
 
     return healthData;

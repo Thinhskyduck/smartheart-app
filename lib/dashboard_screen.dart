@@ -6,6 +6,7 @@ import 'symptom_report_screen.dart';
 import 'alert_dialogs.dart';
 import 'services/health_service.dart';
 import 'staff_dashboard_screen.dart';
+import 'services/ai_service.dart'; // Import AI Service
 
 const Color primaryColor = Color(0xFF2260FF);
 
@@ -18,7 +19,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  // --- DỮ LIỆU CHỈ SỐ (ĐÃ FIX: THÊM TRƯỜNG 'unit') ---
+  // Dữ liệu chỉ số UI
   List<Map<String, dynamic>> _metrics = [
     {"id": "weight", "title": "Cân nặng", "value": "--", "unit": "kg", "icon": Icons.monitor_weight, "color": Colors.blue},
     {"id": "bp", "title": "Huyết áp", "value": "--/--", "unit": "mmHg", "icon": Icons.favorite_border, "color": Colors.redAccent},
@@ -28,16 +29,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
     {"id": "sleep", "title": "Giấc ngủ", "value": "--", "unit": "", "icon": Icons.bedtime, "color": Colors.indigo},
   ];
 
+  // Trạng thái AI (mặc định là loading hoặc stable)
+  String _aiStatus = "loading"; // loading, xanh, vang, do
+
   @override
   void initState() {
     super.initState();
-    _loadHealthData();
+    _loadData();
   }
 
-  Future<void> _loadHealthData() async {
+  Future<void> _loadData() async {
     await healthService.configure();
+    
+    // 1. Lấy dữ liệu sức khỏe
     final data = await healthService.fetchHealthData();
     
+    // 2. Cập nhật UI các chỉ số
     setState(() {
       for (var metric in _metrics) {
         final id = metric['id'];
@@ -46,6 +53,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
       }
     });
+
+    // 3. Gọi AI Phân tích
+    final aiResult = await aiService.predictHealthStatus(data);
+    
+    if (mounted) {
+      setState(() {
+        _aiStatus = aiResult ?? "xanh"; // Mặc định xanh nếu lỗi
+      });
+
+      // Kích hoạt cảnh báo pop-up nếu cần thiết
+      if (_aiStatus == "đỏ") {
+        Future.delayed(Duration(seconds: 1), () => showDangerAlert(context));
+      } else if (_aiStatus == "vàng") {
+        Future.delayed(Duration(seconds: 1), () => showWarningAlert(context));
+      }
+    }
   }
 
   @override
@@ -66,7 +89,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         actions: [
            GestureDetector(
-            onTap: () => widget.onTabChange(3), // Chuyển sang tab Profile
+            onTap: () => widget.onTabChange(3),
             child: Padding(
               padding: const EdgeInsets.only(right: 16.0),
               child: CircleAvatar(
@@ -82,65 +105,86 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- 1. THẺ TRẠNG THÁI (KHÔI PHỤC TỪ LIB_OLD) ---
+            // 1. THẺ TRẠNG THÁI AI (DYNAMIC)
             _buildStatusCard(),
             SizedBox(height: 20),
 
-            // --- 2. NÚT HÀNH ĐỘNG NHANH ---
+            // 2. HÀNH ĐỘNG
             Text("HÀNH ĐỘNG HÔM NAY", style: TextStyle(fontSize: 14, color: Colors.grey[600], fontWeight: FontWeight.bold)),
             SizedBox(height: 12),
             _buildActionSection(context),
-            
             SizedBox(height: 24),
             
-            // --- 3. DANH SÁCH CHỈ SỐ SỨC KHỎE ---
+            // 3. CHỈ SỐ
             Text("CHỈ SỐ CỦA BẠN", style: TextStyle(fontSize: 14, color: Colors.grey[600], fontWeight: FontWeight.bold)),
             SizedBox(height: 12),
             ..._metrics.map((metric) => _buildWideMetricCard(context, metric)).toList(),
 
-            SizedBox(height: 24),
-            // --- 4. DÀNH CHO BÁC SĨ (DEMO) ---
-            Center(
-              child: TextButton.icon(
-                onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => StaffDashboardScreen()));
-                },
-                icon: Icon(Icons.admin_panel_settings, color: primaryColor),
-                label: Text("Staff Dashboard (Demo)", style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold)),
-              ),
-            ),
             SizedBox(height: 20),
+    
           ],
         ),
       ),
     );
   }
 
-  // Widget: Thẻ trạng thái lớn (Mới thêm lại)
+  // Widget: Thẻ trạng thái Động theo AI
   Widget _buildStatusCard() {
+    List<Color> gradientColors;
+    Color shadowColor;
+    IconData icon;
+    String title;
+    String subtitle;
+
+    // Logic hiển thị theo kết quả AI
+    if (_aiStatus == "đỏ") {
+      gradientColors = [Color(0xFFEF4444), Color(0xFFDC2626)]; // Red
+      shadowColor = Color(0xFFEF4444);
+      icon = Icons.warning_amber_rounded;
+      title = "CẢNH BÁO NGUY HIỂM";
+      subtitle = "Chỉ số sức khỏe có dấu hiệu bất thường nghiêm trọng. Hãy liên hệ bác sĩ ngay!";
+    } else if (_aiStatus == "vàng") {
+      gradientColors = [Color(0xFFF59E0B), Color(0xFFD97706)]; // Orange
+      shadowColor = Color(0xFFF59E0B);
+      icon = Icons.info_outline;
+      title = "CẦN CHÚ Ý";
+      subtitle = "Có một vài thay đổi nhỏ trong chỉ số. Hãy nghỉ ngơi và theo dõi thêm.";
+    } else if (_aiStatus == "loading") {
+      gradientColors = [Colors.grey[400]!, Colors.grey[500]!];
+      shadowColor = Colors.grey;
+      icon = Icons.hourglass_top;
+      title = "ĐANG PHÂN TÍCH...";
+      subtitle = "AI đang tổng hợp dữ liệu sức khỏe của bạn.";
+    } else {
+      // Mặc định là Xanh (Stable)
+      gradientColors = [Color(0xFF059669), Color(0xFF34D399)]; // Green
+      shadowColor = Color(0xFF059669);
+      icon = Icons.check_circle;
+      title = "ỔN ĐỊNH";
+      subtitle = "Hôm nay sức khỏe của bạn rất tốt. Hãy duy trì nhé!";
+    }
+
     return GestureDetector(
-      // --- LOGIC DEMO: BẤM ĐỂ KÍCH HOẠT CẢNH BÁO ---
       onTap: () {
-        // Chạm nhẹ -> Demo Cảnh báo Vàng (Bất thường)
-        showWarningAlert(context);
+        // Test nhanh click để đổi trạng thái (cho demo)
+        // setState(() {
+        //   if (_aiStatus == "xanh") _aiStatus = "vàng";
+        //   else if (_aiStatus == "vàng") _aiStatus = "đỏ";
+        //   else _aiStatus = "xanh";
+        // });
       },
-      onLongPress: () {
-        // Giữ lâu -> Demo Cảnh báo Đỏ (Nguy hiểm)
-        showDangerAlert(context);
-      },
-      // ---------------------------------------------
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF059669), Color(0xFF34D399)], 
+            colors: gradientColors,
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
-            BoxShadow(color: Color(0xFF059669).withOpacity(0.4), blurRadius: 10, offset: Offset(0, 4)),
+            BoxShadow(color: shadowColor.withOpacity(0.4), blurRadius: 10, offset: Offset(0, 4)),
           ],
         ),
         child: Column(
@@ -149,22 +193,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.check_circle, color: Colors.white, size: 28),
+                Icon(icon, color: Colors.white, size: 28),
                 SizedBox(width: 10),
-                Text("TRẠNG THÁI AI", style: TextStyle(color: Colors.white.withOpacity(0.8), fontWeight: FontWeight.bold)),
+                Text("TRẠNG THÁI AI", style: TextStyle(color: Colors.white.withOpacity(0.9), fontWeight: FontWeight.bold)),
               ],
             ),
             SizedBox(height: 12),
             Text(
-              "Hôm nay bạn\nỔN ĐỊNH", 
+              title, 
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold, height: 1.2)
+              style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold, height: 1.2)
             ),
             SizedBox(height: 8),
             Text(
-              "(Chạm để Test Cảnh báo)", // Gợi ý nhỏ để bạn nhớ lúc demo
+              subtitle,
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13, fontStyle: FontStyle.italic)
+              style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14)
             ),
           ],
         ),
@@ -172,15 +216,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   } 
 
-  // Widget: 2 Nút bấm to
   Widget _buildActionSection(BuildContext context) {
+    // Copy lại code cũ của bạn từ dashboard_screen.dart (đã có ở trên)
     final session = medicationService.currentSession;
     final sessionName = session == TimeSession.morning ? "Sáng" : "Tối";
     final isDone = medicationService.isSessionCompleted(session);
 
     return Row(
       children: [
-        // Nút 1: Uống thuốc
         Expanded(
           child: GestureDetector(
             onTap: () {
@@ -209,16 +252,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
         SizedBox(width: 16),
-        // Nút 2: Báo cáo triệu chứng
         Expanded(
           child: GestureDetector(
             onTap: () {
-              // Mở bottom sheet với chiều cao scroll được
               showModalBottomSheet(
                 context: context,
-                isScrollControlled: true, // Quan trọng: Để modal full màn hình
+                isScrollControlled: true,
                 backgroundColor: Colors.transparent,
-                builder: (context) => SymptomReportScreen(), // Gọi màn hình mới
+                builder: (context) => SymptomReportScreen(),
               );
             },
             child: Container(
@@ -244,9 +285,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // Widget thẻ ngang hiển thị chỉ số
   Widget _buildWideMetricCard(BuildContext context, Map<String, dynamic> data) {
-    return Container(
+    // Copy lại code cũ
+     return Container(
       margin: EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -257,7 +298,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            // Truyền toàn bộ map data (bao gồm cả unit vừa thêm) để tránh crash
              Navigator.push(context, MaterialPageRoute(builder: (context) => MetricDetailScreen(data: data)));
           },
           borderRadius: BorderRadius.circular(16),
@@ -282,7 +322,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ],
                   ),
                 ),
-                // Hiển thị Giá trị + Đơn vị
                 Text(
                   "${data['value']} ${data['unit']}",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
