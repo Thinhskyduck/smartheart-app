@@ -100,15 +100,48 @@ class _MedicationScreenState extends State<MedicationScreen> {
         children: [
           _buildScanStatusBanner(),
           Expanded(
-            child: medicationService.isLoading && medicationService.morningMeds.isEmpty && medicationService.eveningMeds.isEmpty
+            // Kiểm tra loading và empty cho cả 4 buổi
+            child: medicationService.isLoading && 
+                   medicationService.morningMeds.isEmpty && 
+                   medicationService.noonMeds.isEmpty && 
+                   medicationService.afternoonMeds.isEmpty && 
+                   medicationService.eveningMeds.isEmpty
                 ? Center(child: CircularProgressIndicator())
                 : RefreshIndicator(
                     onRefresh: () => medicationService.loadMedications(forceReload: true),
                     child: ListView(
                       padding: EdgeInsets.all(16),
                       children: [
-                        _buildSection("Buổi Sáng", medicationService.morningMeds),
-                        _buildSection("Buổi Chiều", medicationService.eveningMeds),
+                        // Chỉ hiển thị tiêu đề buổi nếu có thuốc trong buổi đó
+                        if (medicationService.morningMeds.isNotEmpty)
+                          _buildSection("Buổi Sáng (04:00 - 11:00)", medicationService.morningMeds),
+                        
+                        if (medicationService.noonMeds.isNotEmpty)
+                          _buildSection("Buổi Trưa (11:00 - 14:00)", medicationService.noonMeds),
+
+                        if (medicationService.afternoonMeds.isNotEmpty)
+                          _buildSection("Buổi Chiều (14:00 - 18:00)", medicationService.afternoonMeds),
+
+                        if (medicationService.eveningMeds.isNotEmpty)
+                          _buildSection("Buổi Tối (18:00 - ...)", medicationService.eveningMeds),
+
+                        // Hiển thị thông báo nếu không có thuốc nào ở tất cả các buổi
+                        if (medicationService.morningMeds.isEmpty && 
+                            medicationService.noonMeds.isEmpty && 
+                            medicationService.afternoonMeds.isEmpty && 
+                            medicationService.eveningMeds.isEmpty)
+                            Center(
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 60.0),
+                                child: Column(
+                                  children: [
+                                    Icon(Icons.medication_outlined, size: 60, color: Colors.grey[300]),
+                                    SizedBox(height: 16),
+                                    Text("Chưa có lịch uống thuốc", style: TextStyle(color: Colors.grey[500], fontSize: 16)),
+                                  ],
+                                ),
+                              ),
+                            ),
                       ],
                     ),
                   ),

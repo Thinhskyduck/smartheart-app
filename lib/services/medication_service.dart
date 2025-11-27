@@ -53,11 +53,15 @@ enum TimeSession { morning, evening }
 class MedicationService with ChangeNotifier {
   List<Medication> _morningMeds = [];
   List<Medication> _eveningMeds = [];
+  List<Medication> _noonMeds = [];      // Mới
+  List<Medication> _afternoonMeds = []; // Mới
   bool _isLoaded = false;
   bool _isLoading = false;
 
   List<Medication> get morningMeds => _morningMeds;
   List<Medication> get eveningMeds => _eveningMeds;
+  List<Medication> get noonMeds => _noonMeds;           // Mới
+  List<Medication> get afternoonMeds => _afternoonMeds; // Mới
   bool get isLoading => _isLoading;
 
   TimeSession get currentSession {
@@ -90,7 +94,10 @@ class MedicationService with ChangeNotifier {
         final List<dynamic> data = apiService.parseResponse(response) as List;
         final medications = data.map((json) => Medication.fromJson(json)).toList();
         
+        // Tìm đoạn gán danh sách thuốc sau khi load API thành công
         _morningMeds = medications.where((m) => m.session == 'morning').toList();
+        _noonMeds = medications.where((m) => m.session == 'noon').toList(); // SỬA DÒNG NÀY (Cũ là _eveningMeds)
+        _afternoonMeds = medications.where((m) => m.session == 'afternoon').toList();
         _eveningMeds = medications.where((m) => m.session == 'evening').toList();
         
         _isLoaded = true;
@@ -128,9 +135,14 @@ class MedicationService with ChangeNotifier {
         
         if (newMed.session == 'morning') {
           _morningMeds.add(newMed);
+        } else if (newMed.session == 'noon') {
+          _noonMeds.add(newMed);
+        } else if (newMed.session == 'afternoon') {
+          _afternoonMeds.add(newMed);
         } else {
           _eveningMeds.add(newMed);
         }
+        
         
         notifyListeners();
         debugPrint('✅ Medication added successfully: ${newMed.id}');
@@ -169,11 +181,26 @@ class MedicationService with ChangeNotifier {
 
   // Update medication details
   Future<bool> updateMedication(String id, String newName, String newDosage, int newQuantity, String newTime) async {
-    final allMeds = [..._morningMeds, ..._eveningMeds];
+    final allMeds = [..._morningMeds, ..._noonMeds, ..._afternoonMeds, ..._eveningMeds]; // Nhớ thêm noon/afternoon vào đây để tìm cho đủ
     
     try {
       final med = allMeds.firstWhere((m) => m.id == id);
       
+      // --- LOGIC TÍNH TOÁN LẠI SESSION MỚI ---
+      String newSession = med.session; // Mặc định giữ cũ
+      try {
+        final timeParts = newTime.split(':');
+        final hour = int.parse(timeParts[0]);
+        
+        if (hour >= 4 && hour < 11) newSession = 'morning';
+        else if (hour >= 11 && hour < 14) newSession = 'noon';
+        else if (hour >= 14 && hour < 18) newSession = 'afternoon';
+        else newSession = 'evening';
+      } catch (e) {
+        debugPrint("Lỗi parse giờ: $e");
+      }
+      // ---------------------------------------
+
       final response = await apiService.put(
         ApiConfig.medicationById(id),
         body: {
@@ -181,6 +208,7 @@ class MedicationService with ChangeNotifier {
           'dosage': newDosage,
           'quantity': newQuantity,
           'time': newTime,
+          'session': newSession, // Gửi thêm session mới lên server
         },
       );
 
@@ -189,6 +217,12 @@ class MedicationService with ChangeNotifier {
         med.dosage = newDosage;
         med.quantity = newQuantity;
         med.time = newTime;
+        med.session = newSession; // Cập nhật local
+        
+        // Reload lại list để thuốc nhảy sang danh sách đúng
+        // (Cách đơn giản nhất là gọi lại loadMedications, hoặc tự move phần tử giữa các list)
+        await loadMedications(forceReload: true); 
+        
         notifyListeners();
         return true;
       }
@@ -198,7 +232,7 @@ class MedicationService with ChangeNotifier {
       debugPrint('Update medication error: $e');
       return false;
     }
-  }
+}
 
   // Delete medication
   Future<bool> deleteMedication(String id) async {

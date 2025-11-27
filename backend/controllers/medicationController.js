@@ -41,26 +41,30 @@ exports.scanPrescription = async (req, res) => {
         });
 
         const prompt = `
-        Bạn là chuyên gia y tế. Hãy phân tích hình ảnh toa thuốc và trả về JSON theo đúng cấu trúc sau.
+        Bạn là dược sĩ chuyên nghiệp. Hãy phân tích hình ảnh toa thuốc và trả về JSON.
         
-        Yêu cầu tách biệt rõ ràng:
-        1. "ghi_chu_rieng": Chỉ những lưu ý dành riêng cho thuốc đó (VD: lắc kỹ, uống lúc đói).
-        2. "loi_dan_chung": Những lời dặn dò tổng quát cho bệnh nhân (VD: Kiêng rượu bia, ăn nhạt, chế độ tập luyện).
-
+        Quy tắc phân loại buổi uống (Rất quan trọng):
+        - Nếu đơn ghi "Sáng, Chiều" -> Trả về ["sáng", "chiều"]
+        - Nếu đơn ghi "2 lần/ngày" hoặc "Sáng, Tối" -> Trả về ["sáng", "tối"] (Trừ khi có chỉ định khác)
+        - Nếu đơn ghi "3 lần/ngày" -> Trả về ["sáng", "trưa", "chiều"]
+        - Nếu đơn ghi "4 lần/ngày" -> Trả về ["sáng", "trưa", "chiều", "tối"]
+        - Nếu chỉ ghi "Uống sau ăn" mà không nói mấy lần -> Mặc định ["sáng"]
+        
         Cấu trúc JSON bắt buộc:
         {
             "don_thuoc": [
                 {
                     "ten_thuoc": "Tên thuốc + hàm lượng",
-                    "lieu_luong": "Số lượng/Liều lượng",
-                    "cach_dung": "Cách dùng cụ thể",
-                    "ghi_chu_rieng": "Ghi chú riêng của thuốc này (để trống nếu không có)"
+                    "lieu_luong": "VD: 1 viên",
+                    "cach_dung": "VD: Uống sau ăn",
+                    "cac_buoi_dung": ["sáng", "trưa", "chiều", "tối"],
+                    "ghi_chu_rieng": "Lưu ý đặc biệt (nếu có)"
                 }
             ],
             "thong_tin_chung": {
-                "ngay_tai_kham": "Ngày hoặc khoảng thời gian (hoặc null)",
-                "noi_tai_kham": "Tên cơ sở y tế (hoặc null)",
-                "loi_dan_chung": "Các lời dặn dò chung, chế độ ăn uống, sinh hoạt..."
+                "ngay_tai_kham": "DD/MM/YYYY hoặc null",
+                "noi_tai_kham": "Tên cơ sở y tế hoặc null",
+                "loi_dan_chung": "Lời dặn dò chung..."
             }
         }
         `;
@@ -101,6 +105,7 @@ exports.scanPrescription = async (req, res) => {
                 ten_thuoc: med.ten_thuoc || "Đang cập nhật",
                 lieu_luong: med.lieu_luong || "",
                 cach_dung: med.cach_dung || "",
+                cac_buoi_dung: med.cac_buoi_dung || ["sáng"],
                 ghi_chu_rieng: med.ghi_chu_rieng || "" // Frontend check field này, nếu có text thì hiện icon/text note
             })),
             generalInfo: {

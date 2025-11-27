@@ -8,21 +8,32 @@ class PrescriptionItem {
   final String name;
   final String dosage;
   final String usage;
+  final List<String> sessions;
   final String notes; // ghi_chu_rieng của từng thuốc
 
   PrescriptionItem({
     required this.name,
     required this.dosage,
     required this.usage,
+    required this.sessions,
     required this.notes,
   });
 
   // Parse từ API mới (medications array)
   factory PrescriptionItem.fromJson(Map<String, dynamic> json) {
+    // Parse mảng sessions từ JSON
+    List<String> parsedSessions = [];
+    if (json['cac_buoi_dung'] != null) {
+      parsedSessions = List<String>.from(json['cac_buoi_dung']);
+    } else {
+      parsedSessions = ["sáng"]; // Mặc định nếu AI không trả về
+    }
+
     return PrescriptionItem(
       name: json['ten_thuoc'] ?? 'Không xác định',
       dosage: json['lieu_luong'] ?? '',
       usage: json['cach_dung'] ?? '',
+      sessions: parsedSessions, // Gán vào
       notes: json['ghi_chu_rieng'] ?? '',
     );
   }

@@ -24,7 +24,7 @@ const MedicationSchema = new mongoose.Schema({
     },
     session: {
         type: String, // 'morning', 'evening'
-        enum: ['morning', 'evening'],
+        enum: ['morning', 'noon', 'afternoon', 'evening'],
         required: true
     },
     isTaken: {

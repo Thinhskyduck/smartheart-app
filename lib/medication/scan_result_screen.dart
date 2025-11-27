@@ -15,7 +15,7 @@ class ScannedMed {
   String notes;    // Ghi chú riêng của thuốc
 
   ScannedMed(this.name, this.schedule, this.time, this.dose, this.quantity, {this.notes = ''});
-}
+} 
 
 class ScanResultScreen extends StatefulWidget {
   final List<PrescriptionItem> results;
@@ -38,20 +38,42 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
   }
 
   void _loadData() {
-    // Lấy thông tin chung từ prescriptionProcessingService
     final genInfo = prescriptionProcessingService.generalInfo;
     followUpSchedule = genInfo?.followUpSchedule ?? 'Không có thông tin tái khám';
     generalAdvice = genInfo?.generalAdvice ?? '';
     
+    List<ScannedMed> processedList = [];
+
+    for (var item in widget.results) {
+      String defaultQuantity = "30"; 
+
+      // Duyệt qua mảng sessions mà AI đã phân tích
+      // AI trả về: ["sáng", "chiều"] -> Tạo 2 item
+      for (String session in item.sessions) {
+        String time = "08:00"; // Mặc định
+
+        // Map từ khóa sang giờ chuẩn
+        switch (session.toLowerCase()) {
+          case "sáng": time = "08:00"; break;
+          case "trưa": time = "11:30"; break;
+          case "chiều": time = "14:00"; break;
+          case "tối": time = "20:00"; break;
+          default: time = "08:00";
+        }
+
+        processedList.add(ScannedMed(
+          item.name, 
+          item.usage, // Vẫn giữ nguyên text hướng dẫn gốc
+          time, 
+          item.dosage, 
+          defaultQuantity, 
+          notes: item.notes
+        ));
+      }
+    }
+    
     setState(() {
-      scannedMeds = widget.results.map((item) => ScannedMed(
-        item.name,
-        item.usage.isNotEmpty ? item.usage : "Sau ăn", // Default logic
-        "8:00", // Default time, user can edit
-        item.dosage,
-        "Đang cập nhật", // Quantity not provided
-        notes: item.notes,
-      )).toList();
+      scannedMeds = processedList;
     });
   }
 
@@ -69,21 +91,28 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     int failCount = 0;
 
     for (var scannedMed in scannedMeds) {
-      // Parse time from string (format: "HH:MM")
+      // 1. Phân tích giờ để xác định buổi
       final timeParts = scannedMed.time.split(':');
       final hour = int.tryParse(timeParts.first) ?? 8;
       
-      // Determine session based on time
-      String session = hour < 13 ? 'morning' : 'evening';
-      
-      // Parse quantity from string or use default
-      int quantity = 30;
-      if (scannedMed.quantity != "Đang cập nhật") {
-        quantity = int.tryParse(scannedMed.quantity) ?? 30;
+      String session;
+      // Logic phân loại 4 buổi:
+      if (hour >= 4 && hour < 11) {
+        session = 'morning';
+      } else if (hour >= 11 && hour < 14) {
+        session = 'noon';
+      } else if (hour >= 14 && hour < 18) {
+        session = 'afternoon';
+      } else {
+        session = 'evening';
       }
+      
+      int quantity = int.tryParse(scannedMed.quantity) ?? 30;
 
+      // 2. Tạo object Medication
       final medication = Medication(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        // Tạo ID tạm thời duy nhất để tránh trùng lặp khi add liên tục
+        id: DateTime.now().millisecondsSinceEpoch.toString() + "_" + scannedMed.name,
         name: scannedMed.name,
         dosage: scannedMed.dose,
         quantity: quantity,
@@ -92,6 +121,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
         isTaken: false,
       );
 
+      // 3. Gọi API thêm thuốc
       final success = await medicationService.addMedication(medication);
       
       if (success) {
@@ -103,6 +133,7 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
 
     setState(() => _isLoading = false);
 
+    // 4. Thông báo kết quả
     if (failCount == 0) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
