@@ -21,18 +21,21 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> with Single
   bool _isLoadingHistory = true;
   List<dynamic> _medications = [];
   List<dynamic> _healthHistory = [];
+  // 1. Thêm biến để lưu dữ liệu mới nhất
+  late Map<String, dynamic> _currentPatientData;
 
   // Helper để lấy thông tin user an toàn
   Map<String, dynamic> get _userInfo {
-    if (widget.patientData['user'] != null) {
-      return widget.patientData['user'];
+    if (_currentPatientData['user'] != null) {
+      return _currentPatientData['user'];
     }
-    return widget.patientData; 
+    return _currentPatientData; 
   }
 
   @override
   void initState() {
     super.initState();
+    _currentPatientData = _currentPatientData; // Khởi tạo bằng dữ liệu truyền qua
     _tabController = TabController(length: 4, vsync: this);
     _fetchDetailData();
   }
@@ -56,7 +59,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> with Single
   }
 
   void _fetchDetailData() {
-    final patientId = widget.patientData['id'] ?? widget.patientData['user']?['_id'] ?? widget.patientData['_id'];
+    final patientId = _currentPatientData['id'] ?? _currentPatientData['user']?['_id'] ?? _currentPatientData['_id'];
     
     if (patientId == null) return;
 
@@ -72,6 +75,15 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> with Single
         _healthHistory = data;
         _isLoadingHistory = false;
       });
+    });
+
+    // 2. THÊM ĐOẠN NÀY: Gọi API lấy Status mới nhất
+    staffService.getPatientInfo(patientId).then((newData) {
+      if (newData != null && mounted) {
+        setState(() {
+          _currentPatientData = newData; // Cập nhật dữ liệu mới (Status mới)
+        });
+      }
     });
   }
 
@@ -124,9 +136,11 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> with Single
     );
   }
 
-  // --- TAB 1: TỔNG QUAN ---
+  // 3. SỬA TẤT CẢ các chỗ dùng `widget.patientData` thành `_currentPatientData`
+  // Ví dụ trong _buildOverviewTab:
   Widget _buildOverviewTab() {
-    final statusStr = widget.patientData['status']?.toString() ?? 'stable';
+    // SỬA Ở ĐÂY: Dùng _currentPatientData thay vì widget.patientData
+    final statusStr = _currentPatientData['status']?.toString() ?? 'stable';
     final phone = _userInfo['phoneNumber'] ?? '';
 
     AIStatus status;
@@ -161,8 +175,8 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> with Single
     }
 
     DateTime lastUpdate = DateTime.now();
-    if (widget.patientData['lastUpdate'] != null) {
-      try { lastUpdate = DateTime.parse(widget.patientData['lastUpdate'].toString()); } catch (_) {}
+    if (_currentPatientData['lastUpdate'] != null) {
+      try { lastUpdate = DateTime.parse(_currentPatientData['lastUpdate'].toString()); } catch (_) {}
     }
 
     return ListView(
@@ -183,7 +197,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> with Single
               Text(statusText, style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
               SizedBox(height: 5),
               Text(
-                widget.patientData['lastAlert'] ?? "Không có cảnh báo mới",
+                _currentPatientData['lastAlert'] ?? "Không có cảnh báo mới",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white.withOpacity(0.95), fontSize: 16),
               ),
@@ -200,7 +214,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> with Single
         SizedBox(height: 20),
 
         // 2. Card Chỉ số báo động (Nếu có)
-        if (widget.patientData['criticalValue'] != null) ...[
+        if (_currentPatientData['criticalValue'] != null) ...[
           _buildSectionTitle("Cảnh báo chỉ số"),
           Card(
             color: Colors.red[50],
@@ -209,9 +223,9 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> with Single
             child: ListTile(
               contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               leading: Icon(Icons.trending_down, color: Colors.red, size: 32),
-              title: Text(widget.patientData['criticalMetric'] ?? 'Chỉ số', style: TextStyle(color: Colors.red[900], fontWeight: FontWeight.bold)),
+              title: Text(_currentPatientData['criticalMetric'] ?? 'Chỉ số', style: TextStyle(color: Colors.red[900], fontWeight: FontWeight.bold)),
               trailing: Text(
-                "${widget.patientData['criticalValue']}",
+                "${_currentPatientData['criticalValue']}",
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.red),
               ),
             ),
@@ -373,9 +387,9 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> with Single
     final phone = _userInfo['phoneNumber'] ?? 'Chưa cập nhật';
     
     // Lấy email từ object patientData (được backend trả về thêm) hoặc từ user
-    final email = widget.patientData['email'] ?? _userInfo['email'] ?? 'Chưa cập nhật';
+    final email = _currentPatientData['email'] ?? _userInfo['email'] ?? 'Chưa cập nhật';
     
-    final guardianPhone = widget.patientData['guardianPhone'] ?? _userInfo['guardianPhone'] ?? 'Không có';
+    final guardianPhone = _currentPatientData['guardianPhone'] ?? _userInfo['guardianPhone'] ?? 'Không có';
     final dob = _userInfo['yearOfBirth'] ?? 'Chưa cập nhật';
 
     return ListView(

@@ -30,6 +30,20 @@ class StaffService {
       return [];
     }
   }
+
+  // THÊM HÀM NÀY: Lấy thông tin profile mới nhất (để update status)
+  Future<Map<String, dynamic>?> getPatientInfo(String patientId) async {
+    try {
+      final response = await apiService.get('${ApiConfig.BASE_URL}/api/staff/patient/$patientId/info');
+      if (apiService.isSuccess(response)) {
+        return apiService.parseResponse(response);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error getting patient info: $e');
+      return null;
+    }
+  }
 }
 
 final staffService = StaffService();

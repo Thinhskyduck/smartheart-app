@@ -115,4 +115,29 @@ router.get('/patient/:id/health', async (req, res) => {
     }
 });
 
+// GET /api/staff/patient/:id/info - Lấy thông tin profile và status mới nhất
+router.get('/patient/:id/info', async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id).select('-password');
+        if (!user) return res.status(404).json({ msg: 'User not found' });
+        
+        // Trả về cấu trúc giống danh sách dashboard để frontend dễ map
+        res.json({
+            id: user._id,
+            name: user.fullName,
+            status: user.currentHealthStatus || 'stable', // Lấy status mới nhất từ DB
+            lastAlert: user.lastAiAlert || '',
+            criticalValue: user.criticalValue,
+            criticalMetric: user.criticalMetric,
+            lastUpdate: user.lastHealthUpdate,
+            phoneNumber: user.phoneNumber,
+            email: user.email,
+            guardianPhone: user.guardianPhone
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ msg: 'Server Error' });
+    }
+});
+
 module.exports = router;
