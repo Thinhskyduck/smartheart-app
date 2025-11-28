@@ -8,6 +8,7 @@ import 'services/health_service.dart';
 import 'staff_dashboard_screen.dart';
 import 'services/ai_service.dart'; // Import AI Service
 import 'services/user_service.dart';
+import 'dart:async';
 
 const Color primaryColor = Color(0xFF2260FF);
 
@@ -32,11 +33,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // Trạng thái AI (mặc định là loading hoặc stable)
   String _aiStatus = "loading"; // loading, xanh, vang, do
+  Timer? _timer; // 2. Khai báo biến Timer
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _loadData(); // Chạy ngay khi mở màn hình
+
+    // 3. THÊM TIMER: Tự động quét lại mỗi 5 phút (300 giây)
+    _timer = Timer.periodic(Duration(seconds: 120), (timer) {
+      debugPrint("⏰ Auto-refreshing data for AI...");
+      _loadData();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel(); // 4. Hủy timer khi thoát màn hình để tránh lỗi
+    super.dispose();
   }
 
   Future<void> _loadData() async {

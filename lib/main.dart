@@ -19,17 +19,37 @@ const Color primaryColor = Color(0xFF2260FF);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize services
+
   await NotificationService.initialize();
-  await authService.initialize(); // Load saved token and user data
-  
+  await authService.initialize(); 
+
   runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    // ===============================
+    //      LOGIC KIỂM TRA LOGIN
+    // ===============================
+    String startRoute = '/login';
+    final user = authService.currentUser;
+
+    if (user != null) {
+      if (user.role == UserRole.doctor) {
+        startRoute = '/doctor-dashboard';
+      } else if (user.role == UserRole.patient) {
+        if (user.isOnboardingComplete) {
+          startRoute = '/home';
+        } else {
+          startRoute = '/onboarding';
+        }
+      } else {
+        startRoute = '/home';
+      }
+    }
+    // ===============================
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'PentaPulse App',
@@ -40,18 +60,27 @@ class MyApp extends StatelessWidget {
           backgroundColor: Colors.white,
           elevation: 0,
           iconTheme: IconThemeData(color: Colors.black),
-          titleTextStyle: TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.bold),
+          titleTextStyle: TextStyle(
+            color: Colors.black,
+            fontSize: 20,
+            fontWeight: FontWeight.bold
+          ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: primaryColor,
             foregroundColor: Colors.white,
             minimumSize: Size(double.infinity, 50),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)
+            ),
           ),
         ),
       ),
-      initialRoute: '/login', 
+
+      // DÙNG ROUTE ĐÃ TÍNH TOÁN
+      initialRoute: startRoute,
+
       routes: {
         '/login': (context) => LoginScreen(),
         '/register': (context) => RegisterScreen(),
@@ -78,8 +107,6 @@ class _MainAppShellState extends State<MainAppShell> {
   @override
   void initState() {
     super.initState();
-    // Force reload medications from backend (with valid token)
-    // This fixes the issue where medications don't show after app restart
     medicationService.loadMedications(forceReload: true);
   }
 
@@ -99,7 +126,7 @@ class _MainAppShellState extends State<MainAppShell> {
     ];
 
     return Scaffold(
-      body: IndexedStack( 
+      body: IndexedStack(
         index: _selectedIndex,
         children: _widgetOptions,
       ),
@@ -110,7 +137,7 @@ class _MainAppShellState extends State<MainAppShell> {
         selectedItemColor: primaryColor,
         unselectedItemColor: Colors.grey[600],
         showUnselectedLabels: true,
-        items: [
+        items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'Trang chủ'),
           BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Lịch sử'),
           BottomNavigationBarItem(icon: Icon(Icons.medication), label: 'Thuốc'),

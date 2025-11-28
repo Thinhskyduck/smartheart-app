@@ -51,7 +51,7 @@ class ApiService {
         Uri.parse(url),
         headers: _getHeaders(includeAuth: includeAuth),
         body: body != null ? jsonEncode(body) : null,
-      ).timeout(Duration(seconds: 3)); // Fast timeout for better UX
+      ).timeout(Duration(seconds: 30)); // Fast timeout for better UX
       return response;
     } catch (e) {
       throw Exception('Network error: $e');
@@ -64,7 +64,7 @@ class ApiService {
       final response = await http.get(
         Uri.parse(url),
         headers: _getHeaders(includeAuth: includeAuth),
-      ).timeout(Duration(seconds: 3)); // Fast timeout for better UX
+      ).timeout(Duration(seconds: 30)); // Fast timeout for better UX
       return response;
     } catch (e) {
       throw Exception('Network error: $e');
@@ -78,7 +78,7 @@ class ApiService {
         Uri.parse(url),
         headers: _getHeaders(includeAuth: includeAuth),
         body: body != null ? jsonEncode(body) : null,
-      ).timeout(Duration(seconds: 3)); // Fast timeout for better UX
+      ).timeout(Duration(seconds: 30)); // Fast timeout for better UX
       return response;
     } catch (e) {
       throw Exception('Network error: $e');
@@ -91,7 +91,7 @@ class ApiService {
       final response = await http.delete(
         Uri.parse(url),
         headers: _getHeaders(includeAuth: includeAuth),
-      ).timeout(Duration(seconds: 3)); // Fast timeout for better UX
+      ).timeout(Duration(seconds: 30)); // Fast timeout for better UX
       return response;
     } catch (e) {
       throw Exception('Network error: $e');

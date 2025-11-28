@@ -48,13 +48,13 @@ class Medication {
   }
 }
 
-enum TimeSession { morning, evening }
+enum TimeSession { morning, noon, afternoon, evening }
 
 class MedicationService with ChangeNotifier {
   List<Medication> _morningMeds = [];
+  List<Medication> _noonMeds = [];
+  List<Medication> _afternoonMeds = [];
   List<Medication> _eveningMeds = [];
-  List<Medication> _noonMeds = [];      // Mới
-  List<Medication> _afternoonMeds = []; // Mới
   bool _isLoaded = false;
   bool _isLoading = false;
 
@@ -64,11 +64,16 @@ class MedicationService with ChangeNotifier {
   List<Medication> get afternoonMeds => _afternoonMeds; // Mới
   bool get isLoading => _isLoading;
 
+  // 2. Sửa logic xác định buổi hiện tại theo giờ thực tế
   TimeSession get currentSession {
     final hour = DateTime.now().hour;
-    if (hour < 13) return TimeSession.morning;
+    if (hour >= 4 && hour < 11) return TimeSession.morning;
+    if (hour >= 11 && hour < 14) return TimeSession.noon;
+    if (hour >= 14 && hour < 18) return TimeSession.afternoon;
+    // Từ 18h trở đi hoặc trước 4h sáng tính là buổi tối
     return TimeSession.evening;
   }
+
 
   // Load medications from backend - WITH FORCE RELOAD OPTION
   Future<void> loadMedications({bool forceReload = false}) async {
@@ -159,7 +164,12 @@ class MedicationService with ChangeNotifier {
 
   // Toggle medication status
   Future<void> toggleMedicationStatus(String medId, bool isTaken) async {
-    final allMeds = [..._morningMeds, ..._eveningMeds];
+    final allMeds = [
+    ..._morningMeds, 
+    ..._noonMeds, 
+    ..._afternoonMeds, 
+    ..._eveningMeds
+  ]; 
     
     try {
       final med = allMeds.firstWhere((m) => m.id == medId);
@@ -241,6 +251,8 @@ class MedicationService with ChangeNotifier {
 
       if (apiService.isSuccess(response)) {
         _morningMeds.removeWhere((m) => m.id == id);
+        _noonMeds.removeWhere((m) => m.id == id);      // <--- Thêm dòng này
+        _afternoonMeds.removeWhere((m) => m.id == id); // <--- Thêm dòng này
         _eveningMeds.removeWhere((m) => m.id == id);
         notifyListeners();
         return true;
@@ -254,16 +266,46 @@ class MedicationService with ChangeNotifier {
   }
 
   bool isSessionCompleted(TimeSession session) {
-    final list = (session == TimeSession.morning) ? _morningMeds : _eveningMeds;
+    List<Medication> list;
+    switch (session) {
+      case TimeSession.morning:
+        list = _morningMeds;
+        break;
+      case TimeSession.noon:
+        list = _noonMeds;
+        break;
+      case TimeSession.afternoon:
+        list = _afternoonMeds;
+        break;
+      case TimeSession.evening:
+        list = _eveningMeds;
+        break;
+    }
+    
     if (list.isEmpty) return true;
     return list.every((med) => med.isTaken);
   }
 
   Future<void> markSessionAsTaken(TimeSession session) async {
-    final list = (session == TimeSession.morning) ? _morningMeds : _eveningMeds;
+    List<Medication> list;
+    switch (session) {
+      case TimeSession.morning:
+        list = _morningMeds;
+        break;
+      case TimeSession.noon:
+        list = _noonMeds;
+        break;
+      case TimeSession.afternoon:
+        list = _afternoonMeds;
+        break;
+      case TimeSession.evening:
+        list = _eveningMeds;
+        break;
+    }
     
     for (var med in list) {
       if (!med.isTaken) {
+        // Gọi hàm toggle đã sửa để update lên server và UI
         await toggleMedicationStatus(med.id, true);
       }
     }

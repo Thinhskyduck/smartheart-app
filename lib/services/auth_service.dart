@@ -62,14 +62,21 @@ class AuthService with ChangeNotifier {
     if (apiService.token != null) {
       try {
         final userResponse = await apiService.get(ApiConfig.authMe);
+        
         if (apiService.isSuccess(userResponse)) {
           final userData = apiService.parseResponse(userResponse);
           currentUser = UserData.fromJson(userData);
           notifyListeners();
+        } else {
+          // Chỉ xóa token nếu Server trả về lỗi 401 (Unauthorized) - tức là token hết hạn
+          if (userResponse.statusCode == 401) {
+             apiService.clearToken();
+          }
         }
       } catch (e) {
         debugPrint("Initialize Error: $e");
-        apiService.clearToken();
+        // QUAN TRỌNG: Xóa dòng apiService.clearToken() ở đây đi.
+        // Nếu lỗi mạng (offline), vẫn giữ token để lần sau thử lại, không bắt user đăng nhập lại.
       }
     }
   }
