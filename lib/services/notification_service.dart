@@ -20,27 +20,36 @@ class NotificationService {
         ?.requestNotificationsPermission();
   }
 
+  // 1. Thông báo Khẩn cấp (Có tiếng, Có Rung, Priority Max)
   static Future<void> showAlertNotification({required String title, required String body}) async {
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
-      'high_importance_channel_v2', // <--- ĐỔI ID MỚI TẠI ĐÂY
-      'Cảnh báo Sức khỏe Khẩn cấp', // Đổi tên kênh chút cũng được
-      channelDescription: 'Kênh thông báo khẩn cấp về chỉ số sức khỏe',
-      importance: Importance.max, // Max để có popup và âm thanh
+      'high_importance_channel', 
+      'Cảnh báo Khẩn cấp',
+      channelDescription: 'Kênh thông báo khẩn cấp có âm thanh',
+      importance: Importance.max,
       priority: Priority.high,
       playSound: true,
       enableVibration: true,
     );
+    const NotificationDetails platformChannelSpecifics = NotificationDetails(android: androidPlatformChannelSpecifics);
+    await _notificationsPlugin.show(0, title, body, platformChannelSpecifics);
+  }
 
-    const NotificationDetails platformChannelSpecifics =
-        NotificationDetails(android: androidPlatformChannelSpecifics);
-
-    await _notificationsPlugin.show(
-      DateTime.now().millisecond, // ID ngẫu nhiên để không bị đè thông báo cũ
-      title,
-      body,
-      platformChannelSpecifics,
+  // 2. Thông báo Im lặng (Không tiếng, Không rung, chỉ hiện icon trên thanh trạng thái)
+  static Future<void> showSilentNotification({required String title, required String body}) async {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+      'silent_channel', 
+      'Thông báo duy trì',
+      channelDescription: 'Kênh thông báo im lặng để nhắc nhở',
+      importance: Importance.low, // Low: Không phát ra âm thanh, không pop-up
+      priority: Priority.low,
+      playSound: false,
+      enableVibration: false,
     );
+    const NotificationDetails platformChannelSpecifics = NotificationDetails(android: androidPlatformChannelSpecifics);
+    await _notificationsPlugin.show(1, title, body, platformChannelSpecifics); // ID khác 0 để không đè lên cái cũ nếu cần
   }
 
   // Lên lịch thông báo nhắc nhở uống thuốc hàng ngày vào giờ cụ thể

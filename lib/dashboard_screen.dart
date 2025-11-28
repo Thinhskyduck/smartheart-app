@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:startup_pharmacy/services/notification_service.dart';
 import 'services/auth_service.dart';
 import 'services/medication_service.dart';
 import 'metric_detail_screen.dart';
@@ -33,6 +34,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // Trạng thái AI (mặc định là loading hoặc stable)
   String _aiStatus = "loading"; // loading, xanh, vang, do
   Timer? _timer; // 2. Khai báo biến Timer
+  String _previousStatus = "";
 
   @override
   void initState() {
@@ -58,6 +60,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // 1. Lấy dữ liệu sức khỏe
     final data = await healthService.fetchHealthData();
     
+    // LOG DỮ LIỆU (Giữ nguyên)
+    debugPrint("--------------------------------------------------");
+    debugPrint("📊 DỮ LIỆU SỨC KHỎE LẤY TỪ MÁY:");
+    debugPrint("   - Nhịp tim (HR): ${data['hr_raw'] ?? 'null'}");
+    debugPrint("   - SpO2: ${data['spo2_raw'] ?? 'null'}");
+    debugPrint("   - Huyết áp (BP): ${data['bp_sys_raw'] ?? 'null'}");
+    debugPrint("   - HRV: ${data['hrv_raw'] ?? 'null'}");
+    debugPrint("   - Giấc ngủ: ${data['sleep_hours_raw'] ?? 'null'}h");
+    debugPrint("   - Cân nặng change: ${data['weight_change_raw'] ?? 'null'}");
+    debugPrint("--------------------------------------------------");
+    
     // 2. Cập nhật UI các chỉ số
     setState(() {
       for (var metric in _metrics) {
@@ -70,42 +83,73 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     // 3. Gọi AI Phân tích
     final aiResult = await aiService.predictHealthStatus(data);
+    final newStatus = aiResult ?? "xanh";
     
     if (mounted) {
       setState(() {
-        _aiStatus = aiResult ?? "xanh"; 
+        _aiStatus = newStatus;
       });
 
-      // --- CODE MỚI: ĐỒNG BỘ TRẠNG THÁI LÊN SERVER ---
       String serverStatus = 'stable';
       String alertMsg = 'Các chỉ số ổn định';
+
+      // --- XỬ LÝ LOGIC CẢNH BÁO ---
+      
+      if (newStatus == "đỏ") {
+        // === TRƯỜNG HỢP ĐỎ (NGUY HIỂM) ===
+        serverStatus = 'danger';
+        alertMsg = 'AI Cảnh báo nguy hiểm';
+
+        if (_previousStatus != "đỏ") {
+          // Mới chuyển sang Đỏ -> Báo động mạnh (Popup + Rung + Chuông)
+          debugPrint("🚨 NGUY HIỂM MỚI -> Popup + Sound");
+          Future.delayed(Duration(seconds: 1), () => showDangerAlert(context));
+        } else {
+          // Vẫn Đỏ (Lặp lại) -> Chỉ hiện thông báo im lặng trên thanh status bar
+          debugPrint("⚠️ Vẫn nguy hiểm -> Silent Notification");
+          NotificationService.showSilentNotification(
+            title: "⚠️ Cảnh báo Sức khỏe vẫn tiếp diễn",
+            body: "Chỉ số của bạn vẫn ở mức Đỏ. Vui lòng kiểm tra ngay.",
+          );
+        }
+
+      } else if (newStatus == "vàng") {
+        // === TRƯỜNG HỢP VÀNG (CẦN CHÚ Ý) ===
+        serverStatus = 'warning';
+        alertMsg = 'AI Cảnh báo cần chú ý';
+        
+        // Yêu cầu: Có thông báo trên thanh status bar (nhưng không rung)
+        NotificationService.showSilentNotification(
+            title: "Cần chú ý sức khỏe",
+            body: "AI phát hiện một số thay đổi nhỏ. Hãy theo dõi.",
+        );
+
+        // Yêu cầu: Có Popup nhưng không cần tắt rung (vì bản chất showWarningAlert không rung)
+        if (_previousStatus != "vàng") {
+             debugPrint("⚠️ Cảnh báo Vàng mới -> Hiện Popup");
+             Future.delayed(Duration(seconds: 1), () => showWarningAlert(context)); 
+        }
+      }
+
+      // Cập nhật trạng thái để lần sau so sánh
+      _previousStatus = newStatus;
+
+      // 4. Chuẩn bị dữ liệu để gửi lên Server
       String? metric;
       String? val;
 
-      if (_aiStatus == "đỏ") {
-        serverStatus = 'danger';
-        alertMsg = 'AI Cảnh báo nguy hiểm';
-        // Logic giả lập lấy chỉ số gây báo động để gửi lên (hoặc lấy từ AI nếu AI trả về chi tiết)
-        // Ở đây tạm lấy ví dụ
-        if ((data['hr_raw'] ?? 0) > 100) { metric = 'HR'; val = "${data['hr_raw']} bpm"; }
-        else if ((data['spo2_raw'] ?? 99) < 95) { metric = 'SpO2'; val = "${data['spo2_raw']}%"; }
-        else if ((data['hrv_raw'] ?? 50) < 30) { metric = 'HRV'; val = "${data['hrv_raw']} ms"; }
-        
-        Future.delayed(Duration(seconds: 1), () => showDangerAlert(context));
-      } else if (_aiStatus == "vàng") {
-        serverStatus = 'warning';
-        alertMsg = 'AI Cảnh báo cần chú ý';
-        Future.delayed(Duration(seconds: 1), () => showWarningAlert(context));
-      }
-
-      // Gọi API đồng bộ ngay lập tức
+      // Logic lấy chỉ số gây báo động (Ví dụ)
+      if ((data['hr_raw'] ?? 0) > 100) { metric = 'HR'; val = "${data['hr_raw']} bpm"; }
+      else if ((data['spo2_raw'] ?? 99) < 95) { metric = 'SpO2'; val = "${data['spo2_raw']}%"; }
+      else if ((data['hrv_raw'] ?? 50) < 30) { metric = 'HRV'; val = "${data['hrv_raw']} ms"; }
+      
+      // 5. Gọi API đồng bộ
       await userService.syncHealthStatus(
         status: serverStatus,
         alert: alertMsg,
         metric: metric,
         value: val
       );
-      // ------------------------------------------------
     }
   }
 
