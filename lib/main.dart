@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:startup_pharmacy/welcome_screen.dart';
 import 'dashboard_screen.dart';
 import 'history_screen.dart';
 import 'medication_screen.dart';

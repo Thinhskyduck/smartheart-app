@@ -4,7 +4,6 @@ import '../services/auth_service.dart';
 import '../services/api_config.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:permission_handler/permission_handler.dart'; // Import để check quyền
 
 const Color primaryColor = Color(0xFF2260FF);
 
