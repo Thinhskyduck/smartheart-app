@@ -25,8 +25,8 @@ void showDangerAlert(BuildContext context) async {
   // === KÍCH HOẠT THÔNG BÁO ===
   try {
     NotificationService.showAlertNotification(
-      title: "⚠️ NGUY HIỂM: SpO2 Thấp",
-      body: "Chỉ số SpO2 của bạn giảm xuống 89%. Cần hành động ngay!",
+      title: "⚠️ NGUY HIỂM: HRV Thấp",
+      body: "Chỉ số HRV của bạn giảm xuống 43ms. Cần hành động ngay!",
     );
   } catch (e) {
     print("Lỗi Notification: $e");

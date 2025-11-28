@@ -283,13 +283,23 @@ class HealthService {
 
       // --- XỬ LÝ HRV (Mới) ---
       var hrvPoints = healthDataList.where((e) => e.type == HealthDataType.HEART_RATE_VARIABILITY_RMSSD).toList();
+      
       if (hrvPoints.isNotEmpty) {
+        // Ưu tiên 1: Dữ liệu thực tế từ thiết bị (Đồng hồ/Health Connect)
         hrvPoints.sort((a, b) => b.dateTo.compareTo(a.dateTo));
         var val = (hrvPoints.first.value as NumericHealthValue).numericValue.round();
         healthData['hrv'] = val;
         healthData['hrv_raw'] = val;
       } else {
-        healthData['hrv_raw'] = 0; // Mặc định nếu không có
+        // Ưu tiên 2: Dữ liệu từ Backend (DB) nếu thiết bị không đo được
+        if (healthData['hrv'] != null) {
+           // Parse giá trị từ backend (có thể là String hoặc Int) sang số nguyên
+           // Ví dụ: backend trả về "49" -> parse thành số 49
+           healthData['hrv_raw'] = int.tryParse(healthData['hrv'].toString()) ?? 0;
+        } else {
+           // Trường hợp không có dữ liệu ở cả 2 nơi
+           healthData['hrv_raw'] = 0; 
+        }
       }
 
     } catch (e) {

@@ -59,7 +59,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     
     // 1. Lấy dữ liệu sức khỏe
     final data = await healthService.fetchHealthData();
-    
+
     // LOG DỮ LIỆU (Giữ nguyên)
     debugPrint("--------------------------------------------------");
     debugPrint("📊 DỮ LIỆU SỨC KHỎE LẤY TỪ MÁY:");
@@ -69,6 +69,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     debugPrint("   - HRV: ${data['hrv_raw'] ?? 'null'}");
     debugPrint("   - Giấc ngủ: ${data['sleep_hours_raw'] ?? 'null'}h");
     debugPrint("   - Cân nặng change: ${data['weight_change_raw'] ?? 'null'}");
+    debugPrint("   - Bước chân: ${data['steps_raw'] ?? 'null'}");
     debugPrint("--------------------------------------------------");
     
     // 2. Cập nhật UI các chỉ số
@@ -182,29 +183,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. THẺ TRẠNG THÁI AI (DYNAMIC)
-            _buildStatusCard(),
-            SizedBox(height: 20),
+      body: RefreshIndicator(
+        onRefresh: _loadData, // Gọi hàm load lại dữ liệu khi vuốt
+        color: primaryColor,  // Màu của vòng tròn xoay
+        backgroundColor: Colors.white,
+        child: SingleChildScrollView(
+          // Quan trọng: Thêm physics này để luôn có thể vuốt ngay cả khi nội dung ngắn
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. THẺ TRẠNG THÁI AI (DYNAMIC)
+              _buildStatusCard(),
+              SizedBox(height: 20),
 
-            // 2. HÀNH ĐỘNG
-            Text("HÀNH ĐỘNG HÔM NAY", style: TextStyle(fontSize: 14, color: Colors.grey[600], fontWeight: FontWeight.bold)),
-            SizedBox(height: 12),
-            _buildActionSection(context),
-            SizedBox(height: 24),
-            
-            // 3. CHỈ SỐ
-            Text("CHỈ SỐ CỦA BẠN", style: TextStyle(fontSize: 14, color: Colors.grey[600], fontWeight: FontWeight.bold)),
-            SizedBox(height: 12),
-            ..._metrics.map((metric) => _buildWideMetricCard(context, metric)).toList(),
+              // 2. HÀNH ĐỘNG
+              Text("HÀNH ĐỘNG HÔM NAY", style: TextStyle(fontSize: 14, color: Colors.grey[600], fontWeight: FontWeight.bold)),
+              SizedBox(height: 12),
+              _buildActionSection(context),
+              SizedBox(height: 24),
+              
+              // 3. CHỈ SỐ
+              Text("CHỈ SỐ CỦA BẠN", style: TextStyle(fontSize: 14, color: Colors.grey[600], fontWeight: FontWeight.bold)),
+              SizedBox(height: 12),
+              ..._metrics.map((metric) => _buildWideMetricCard(context, metric)).toList(),
 
-            SizedBox(height: 20),
-    
-          ],
+              SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );
