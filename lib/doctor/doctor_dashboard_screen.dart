@@ -4,6 +4,8 @@ import '../services/api_service.dart';
 import '../services/api_config.dart';
 import 'patient_details_screen.dart';
 import 'doctor_profile_screen.dart';
+import 'dart:async';
+
 const Color primaryColor = Color(0xFF2260FF);
 
 enum AIStatus { danger, warning, stable }
@@ -55,6 +57,8 @@ class DoctorDashboardScreen extends StatefulWidget {
 class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   
+  Timer? _timer;
+
   // Real data for missed medications
   bool _isLoadingMissed = true;
   List<dynamic> _missedPatients = [];
@@ -69,16 +73,51 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> with Sing
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _refreshAll();
     _fetchMissedMedications();
     _fetchHealthPatients();
+    _timer = Timer.periodic(Duration(seconds: 30), (timer) {
+      // Chỉ refresh âm thầm, không hiện vòng xoay loading để tránh làm phiền bác sĩ
+      _refreshAllSilent(); 
+    });
   }
   
   @override
   void dispose() {
+    _timer?.cancel(); // 4. Hủy Timer khi thoát màn hình
     _tabController.dispose();
     super.dispose();
   }
 
+  // 5. Thêm hàm Refresh Âm thầm (Không hiện Loading Indicator quay quay)
+  Future<void> _refreshAllSilent() async {
+    try {
+        // Gọi API Thuốc
+        final resMeds = await apiService.get('${ApiConfig.BASE_URL}/api/staff/missed-medications');
+        if (resMeds.statusCode == 200) {
+            if (mounted) {
+                setState(() {
+                    _missedPatients = json.decode(resMeds.body);
+                });
+            }
+        }
+
+        // Gọi API Sức khỏe
+        final resHealth = await apiService.get('${ApiConfig.BASE_URL}/api/staff/patients-health');
+        if (resHealth.statusCode == 200) {
+            final List<dynamic> data = json.decode(resHealth.body);
+            if (mounted) {
+                setState(() {
+                    _healthPatients = data.map((json) => Patient.fromJson(json)).toList();
+                });
+            }
+        }
+    } catch (e) {
+        debugPrint("Silent refresh error: $e");
+    }
+  }
+  
+  // 6. Cập nhật hàm fetch với setState kiểm tra mounted
   Future<void> _fetchMissedMedications() async {
     setState(() => _isLoadingMissed = true);
     try {

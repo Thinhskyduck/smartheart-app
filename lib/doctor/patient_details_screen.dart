@@ -35,7 +35,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> with Single
   @override
   void initState() {
     super.initState();
-    _currentPatientData = _currentPatientData; // Khởi tạo bằng dữ liệu truyền qua
+    _currentPatientData = widget.patientData; // Khởi tạo bằng dữ liệu truyền qua
     _tabController = TabController(length: 4, vsync: this);
     _fetchDetailData();
   }

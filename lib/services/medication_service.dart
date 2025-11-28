@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'api_service.dart';
 import 'api_config.dart';
+import 'notification_service.dart';
 
 class Medication {
   final String id;
@@ -148,6 +149,23 @@ class MedicationService with ChangeNotifier {
           _eveningMeds.add(newMed);
         }
         
+        // Lên lịch thông báo nhắc nhở uống thuốc
+        try {
+            final timeParts = medication.time.split(':');
+            final hour = int.parse(timeParts[0]);
+            final minute = int.parse(timeParts[1]);
+            
+            // Dùng hashCode của ID làm ID thông báo (để sau này xóa được)
+            await NotificationService.scheduleDailyNotification(
+                id: medication.id.hashCode, 
+                title: "Đến giờ uống thuốc: ${medication.name}",
+                body: "Liều lượng: ${medication.dosage}. Hãy uống ngay nhé!",
+                hour: hour,
+                minute: minute
+            );
+        } catch (e) {
+            debugPrint("Lỗi đặt lịch thông báo: $e");
+        }
         
         notifyListeners();
         debugPrint('✅ Medication added successfully: ${newMed.id}');
