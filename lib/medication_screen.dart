@@ -50,10 +50,18 @@ class _MedicationScreenState extends State<MedicationScreen> {
                 title: Text('Thư viện ảnh'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-                  if (image != null) {
-                    _startScanning(File(image.path));
+                  // === THÊM TRY CATCH ===
+                  try {
+                    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+                    if (image != null) {
+                      _startScanning(File(image.path));
+                    }
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Không thể mở thư viện ảnh."), backgroundColor: Colors.red)
+                    );
                   }
+                  // ======================
                 },
               ),
               ListTile(
@@ -61,10 +69,18 @@ class _MedicationScreenState extends State<MedicationScreen> {
                 title: Text('Chụp ảnh'),
                 onTap: () async {
                   Navigator.of(context).pop();
-                  final XFile? image = await picker.pickImage(source: ImageSource.camera);
-                  if (image != null) {
-                    _startScanning(File(image.path));
+                  // === THÊM TRY CATCH ===
+                  try {
+                    final XFile? image = await picker.pickImage(source: ImageSource.camera);
+                    if (image != null) {
+                      _startScanning(File(image.path));
+                    }
+                  } catch (e) {
+                     ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Không thể mở camera."), backgroundColor: Colors.red)
+                    );
                   }
+                  // ======================
                 },
               ),
             ],

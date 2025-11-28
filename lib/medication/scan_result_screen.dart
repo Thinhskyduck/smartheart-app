@@ -91,69 +91,66 @@ class _ScanResultScreenState extends State<ScanResultScreen> {
     int failCount = 0;
 
     for (var scannedMed in scannedMeds) {
-      // 1. Phân tích giờ để xác định buổi
-      final timeParts = scannedMed.time.split(':');
-      final hour = int.tryParse(timeParts.first) ?? 8;
-      
-      String session;
-      // Logic phân loại 4 buổi:
-      if (hour >= 4 && hour < 11) {
-        session = 'morning';
-      } else if (hour >= 11 && hour < 14) {
-        session = 'noon';
-      } else if (hour >= 14 && hour < 18) {
-        session = 'afternoon';
-      } else {
-        session = 'evening';
-      }
-      
-      int quantity = int.tryParse(scannedMed.quantity) ?? 30;
+      // === BẮT ĐẦU TRY CATCH TRONG VÒNG LẶP ===
+      try {
+        // 1. Phân tích giờ (Xử lý an toàn)
+        int hour = 8; // Giờ mặc định nếu lỗi
+        try {
+          if (scannedMed.time.contains(':')) {
+             final timeParts = scannedMed.time.split(':');
+             hour = int.tryParse(timeParts.first) ?? 8;
+          }
+        } catch (_) {} // Lờ lỗi parse giờ đi, dùng mặc định
+        
+        String session;
+        if (hour >= 4 && hour < 11) session = 'morning';
+        else if (hour >= 11 && hour < 14) session = 'noon';
+        else if (hour >= 14 && hour < 18) session = 'afternoon';
+        else session = 'evening';
+        
+        int quantity = int.tryParse(scannedMed.quantity) ?? 30;
 
-      // 2. Tạo object Medication
-      final medication = Medication(
-        // Tạo ID tạm thời duy nhất để tránh trùng lặp khi add liên tục
-        id: DateTime.now().millisecondsSinceEpoch.toString() + "_" + scannedMed.name,
-        name: scannedMed.name,
-        dosage: scannedMed.dose,
-        quantity: quantity,
-        time: scannedMed.time,
-        session: session,
-        isTaken: false,
-      );
+        // 2. Tạo object
+        final medication = Medication(
+          id: DateTime.now().millisecondsSinceEpoch.toString() + "_" + scannedMed.name,
+          name: scannedMed.name,
+          dosage: scannedMed.dose,
+          quantity: quantity,
+          time: scannedMed.time,
+          session: session,
+          isTaken: false,
+        );
 
-      // 3. Gọi API thêm thuốc
-      final success = await medicationService.addMedication(medication);
-      
-      if (success) {
-        successCount++;
-      } else {
-        failCount++;
+        // 3. Gọi API
+        final success = await medicationService.addMedication(medication);
+        
+        if (success) successCount++;
+        else failCount++;
+
+      } catch (e) {
+        debugPrint("Lỗi khi lưu thuốc ${scannedMed.name}: $e");
+        failCount++; // Tính là lỗi nhưng không crash app
       }
+      // === KẾT THÚC TRY CATCH ===
     }
 
     setState(() => _isLoading = false);
 
-    // 4. Thông báo kết quả
+    // 4. Kết quả (Logic như bạn yêu cầu ở câu trước)
     if (failCount == 0) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Đã thêm $successCount thuốc vào hộp thuốc!"),
-          backgroundColor: Colors.green,
-        )
-      );
+      Navigator.pop(context); // Thành công hết thì đóng luôn, không báo gì
     } else if (successCount > 0) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Đã thêm $successCount thuốc. $failCount thuốc thất bại."),
+          content: Text("Đã thêm $successCount thuốc. Có $failCount thuốc bị lỗi định dạng."),
           backgroundColor: Colors.orange,
         )
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Lỗi khi thêm thuốc. Vui lòng thử lại."),
+          content: Text("Lỗi kết nối. Vui lòng thử lại."),
           backgroundColor: Colors.red,
         )
       );

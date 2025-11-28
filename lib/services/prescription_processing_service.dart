@@ -105,7 +105,23 @@ class PrescriptionProcessingService extends ChangeNotifier {
       _status = ScanStatus.completed;
     } catch (e) {
       _status = ScanStatus.error;
-      _errorMessage = e.toString();
+      // === SỬA TẠI ĐÂY: Dịch lỗi sang tiếng Việt thân thiện ===
+      String errorText = e.toString();
+      
+      if (errorText.contains("Timeout") || errorText.contains("timed out")) {
+        _errorMessage = "Quá thời gian kết nối. Vui lòng kiểm tra mạng.";
+      } else if (errorText.contains("SocketException") || errorText.contains("Network is unreachable")) {
+        _errorMessage = "Không có kết nối mạng. Vui lòng thử lại.";
+      } else if (errorText.contains("413")) {
+        _errorMessage = "Ảnh quá lớn. Vui lòng chọn ảnh nhỏ hơn.";
+      } else if (errorText.contains("500") || errorText.contains("502")) {
+        _errorMessage = "Máy chủ đang bận. Vui lòng thử lại sau.";
+      } else {
+        // Lỗi không xác định thì báo chung chung, không in raw code
+        _errorMessage = "Không thể phân tích ảnh. Vui lòng chụp rõ nét hơn.";
+        debugPrint("Scan Error Details: $e"); // Vẫn log ra console để dev xem
+      }
+      // ========================================================
     }
     notifyListeners();
     _saveState();
