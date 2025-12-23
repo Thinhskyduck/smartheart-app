@@ -8,22 +8,25 @@ All main functionalities are fully implemented, and the backend API is deployed 
 
 This project serves as a technically complete healthcare application prototype and a foundation for future clinical validation and real-world deployment.
 
-## Repository layout
+**Achievements:** Won **2nd Prize** 🥈 in the Pharmaceutical Startup Idea Competition.
+
+## 📌 Repository layout
 
 - Flutter app: [lib](lib/)
 - Node.js API: [backend](backend/)
 - Web deployment config: [netlify.toml](netlify.toml), [netlify_build.sh](netlify_build.sh)
 - Flutter dependencies/config: [pubspec.yaml](pubspec.yaml)
 
-## Features (high level)
+## ✨Features (high level)
 
-- Authentication and role-based routing (patient/doctor/guardian)
-- Health metrics logging + history and dashboard visualization
-- Medication scheduling, reminders, and local notifications
-- Prescription image scanning endpoint (Gemini) to extract structured medication instructions (backend)
+- **Real-time Monitoring:** Synchronizes vital health metrics including Heart Rate, SpO2, ECG, Heart Rate Variability (HRV), Step count, Activity data, and Sleep analysis via Google Health Connect.
+- **AI Diagnosis:** Analyzes health metrics based on medical guidelines to classify patient status (Stable, Warning, Danger).
+- **AI Prescription Scanner:** Uses **Gemini AI** to scan physical prescriptions and automatically generate medication reminders.
+- **Doctor Dashboard:** Allows medical professionals to monitor multiple patients' real-time telemetry and history.
+- **Automated Alerts:** Sends instant notifications/emails to caregivers and doctors in case of emergencies.
 
 
-## Tech stack
+## 🛠 Tech stack
 
 **Frontend**
 
@@ -46,7 +49,7 @@ This project serves as a technically complete healthcare application prototype a
 - Node.js 18+ recommended (for the backend)
 - MongoDB connection string (Atlas or local)
 
-## Quick start (Flutter app)
+## 🚀 Quick start (Flutter app)
 
 From the repository root:
 
@@ -68,7 +71,7 @@ The app’s API endpoints are configured in [lib/services/api_config.dart](lib/s
 
 Tip (Android physical device): if you run the backend on your PC and the phone is on the same network, use your PC’s LAN IP.
 
-## Quick start (Backend API)
+## 🚀 Quick start (Backend API)
 
 From the repository root:
 
