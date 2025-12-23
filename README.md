@@ -9,6 +9,22 @@ All main functionalities are fully implemented, and the backend API is deployed 
 This project serves as a technically complete healthcare application prototype and a foundation for future clinical validation and real-world deployment.
 
 **Achievements:** Won **2nd Prize** 🥈 in the Pharmaceutical Startup Idea Competition.
+---
+
+## 📱 Get Started Now
+[![Download APK](https://img.shields.io/badge/Download-Android_APK-brightgreen?style=for-the-badge&logo=android)](https://github.com/Thinhskyduck/PentaPulse-Health-System/releases/download/v1.0.0/app-release.apk)
+
+> **Note:** Since this is a prototype using Google Health Connect, ensure you have the Health Connect app installed on your device for full functionality.
+
+## 🏗 System Architecture
+Hệ thống được thiết kế theo mô hình Client-Server đảm bảo tính bảo mật và khả năng mở rộng:
+
+
+
+1. **Wearable Layer:** Các thiết bị Smartwatch (Samsung, Pixel, v.v.)
+2. **Data Aggregation:** Google Health Connect (Nơi lưu trữ tập trung trên thiết bị).
+3. **Application Layer (Flutter):** Thu thập dữ liệu, hiển thị Dashboard và gửi thông báo.
+4. **Logic Layer (Node.js):** Xử lý xác thực, lưu trữ DB, gửi Email qua Brevo và phân tích đơn thuốc qua Gemini.
 
 ## 📌 Repository layout
 
